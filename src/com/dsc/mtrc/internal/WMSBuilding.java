@@ -92,7 +92,7 @@ public class WMSBuilding {
 	   	            } 
 	   	            return rb;
 				   }
-		// System.out.println("Before return json is:"+obj1.toString());
+		// System.out.println("Before return json is:"+obj1.toString()); 
 		     if (reccount == 0)
 		     {
 		    	 String msg="No matching building found for:"+bldid;
