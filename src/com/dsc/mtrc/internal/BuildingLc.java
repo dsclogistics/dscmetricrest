@@ -65,15 +65,17 @@ public class BuildingLc  {
     		  			   "  FROM  [dbo].[DSC_MTRC_LC_BLDG] a "+
     		  			   " ,[dbo].[DSC_LC] b "+
     		  			   " where a.dsc_lc_id=b.dsc_lc_id"+
-    		  			   " and (  CAST(DATEADD(month, DATEDIFF(month, -1,'"+calyear +"-January-28')+1 - 2, 0 )as date)   between "+
-    		  			   " a.[dsc_mtrc_lc_bldg_eff_start_dt]  and  a.[dsc_mtrc_lc_bldg_eff_end_dt] )";
+    		  			   " and year(dsc_mtrc_lc_bldg_eff_start_dt)<='"+calyear +"'"+
+    		  			   " and dsc_mtrc_lc_bldg_eff_start_dt<= GETDATE()"+
+    		  			   " and year(dsc_mtrc_lc_bldg_eff_end_dt)>='"+calyear +"'"+
+    		  			   " order by a.dsc_mtrc_lc_bldg_name";
  
   			   
     		//  	  " and (CAST(DATEADD(month, DATEDIFF(month, -1, getdate()) - 2, 0 )as date) >= cast(a.dsc_mtrc_lc_bldg_eff_start_dt  as date) "+ 
     		//  	  " and CAST(DATEADD(ss, -1, DATEADD(month, DATEDIFF(month, 0, getdate()), 0)) as DATE) <=cast(a.dsc_mtrc_lc_bldg_eff_end_dt as date)) ";
  
 	          
-	//	    System.out.println("First SQL:" + SQL);
+		    //System.out.println("First SQL:" + SQL);
 	        
 	          Statement stmt = conn.createStatement();
 	        //     System.out.println("statement connect done" );
