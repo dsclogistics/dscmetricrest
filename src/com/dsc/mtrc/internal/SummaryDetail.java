@@ -297,7 +297,7 @@ public class SummaryDetail {
 								     " d.mtrc_min_val,d.mtrc_max_val,f.data_type_token,  DATENAME(MONTH, e.tm_per_start_dtm) AS MonthName ," +
 						    		 " mmprd.mtrc_prod_display_order,mmprd.mtrc_prod_display_text,mpg_display_text " +
 								     " , mmpg.mpg_less_val, mmpg.mpg_less_eq_val,mmpg.mpg_greater_val, mmpg.mpg_greater_eq_val,mmpg.mpg_equal_val "+
-						    		 ", rmps.rz_mps_status   from [dbo].[MTRC_METRIC_PERIOD_VALUE] a "+ s+
+						    		 ", rmps.rz_mps_status, g.rz_mpvg_goal_met_yn   from [dbo].[MTRC_METRIC_PERIOD_VALUE] a "+ s+
 								     
 						    	//	 " join mtrc_tm_periods e on (( e.tm_per_start_dtm >='"+sdate +"') and (e.tm_per_end_dtm <='"+ edate+"' )) "+
 						    		 " and e.tm_period_id = a.tm_period_id  "+
@@ -307,8 +307,9 @@ public class SummaryDetail {
 						    		 " left join MTRC_METRIC_PERIOD b on a.mtrc_period_id = b.mtrc_period_id and b.tpt_id=e.tpt_id " +
 						    		 " left join dsc_mtrc_lc_bldg c on c.dsc_mtrc_lc_bldg_id = a.dsc_mtrc_lc_bldg_id "+
 						    		 " left join mtrc_metric d on d.mtrc_id=b.mtrc_id " +
-						    		 " left join mtrc_data_type f on f.data_type_id=d.data_type_id "+
-							         " left join mtrc_metric_products as mmprd on mmprd.mtrc_period_id = a.mtrc_period_id ";
+						    		 " left join mtrc_data_type f on f.data_type_id=d.data_type_id "+						    		
+							         " left join mtrc_metric_products as mmprd on mmprd.mtrc_period_id = a.mtrc_period_id "+
+							         " left join RZ_MTRC_PERIOD_VAL_GOAL g on a.Mtrc_period_val_id = g.Mtrc_period_val_id ";
 						    		 
 						       	 if  (!bldid.equals(null) && !bldid.trim().isEmpty())
 							          
@@ -336,7 +337,7 @@ public class SummaryDetail {
 							    		 }						    			 
 						    			 
  
-					           // System.out.println(" BuildingMetric Sql:"+SQL1);	
+					           System.out.println(" BuildingMetric Sql:"+SQL1);	
 					 	        stmt = conn.createStatement();
 					 	    	 
 						         rs = stmt.executeQuery(SQL1);
@@ -351,10 +352,67 @@ public class SummaryDetail {
 											if (rs.getString("data_type_token").equals("pct")) pctyn="Y";
 											
 									        mtrcpassyn="N";
+									        //first we need to check if goal met y/n values already exist in the db goal table
+									        if((rs.getString("rz_mpvg_goal_met_yn")!=null)&&
+										       (!rs.getString("rz_mpvg_goal_met_yn").trim().isEmpty()))
+										      {
+										          mtrcpassyn = rs.getString("rz_mpvg_goal_met_yn");
+										      }
+										      else// if values don't exist, that means what period/metric isn't closed
+										    	  // and we need to dynamically determine the mtrcpassyn value
+										      {
+										    	  if ((!rs.getString("mtrc_period_val_value").equals(null)) &&
+													    	 (!rs.getString("mtrc_period_val_value").trim().isEmpty()))
+													      {		  
+															if (((rs.getString("data_type_token").equals("int"))  ||
+															   (rs.getString("data_type_token").equals("dec"))  ||
+															   (rs.getString("data_type_token").equals("cur"))  ||
+															   (rs.getString("data_type_token").equals("pct"))) &&
+															    (!rs.getString("mtrc_period_val_value").equals("N/A")))
+															{		
+													        // NOW CHECK TO SEE IF FAILED GOALS
+												           
+													        if ((rs.getString("mpg_less_eq_val") != null) && 
+													           (rs.getString("mpg_greater_eq_val") != null)) 
+													           {
+													        
+														         cvalue=Double.parseDouble(rs.getString("mtrc_period_val_value"));
+													        	 if ((cvalue >= Double.parseDouble(rs.getString("mpg_greater_eq_val"))) &&
+													        		(cvalue  <=	 Double.parseDouble(rs.getString("mpg_less_eq_val"))))
+													        		 mtrcpassyn="Y";
+													           }
+													       
+													        if ((rs.getString("mpg_less_eq_val") == null) && 
+															           (rs.getString("mpg_greater_eq_val") != null)) 
+															           {
+															        
+																         cvalue=Double.parseDouble(rs.getString("mtrc_period_val_value"));
+															        	 if (cvalue >= (rs.getDouble("mpg_greater_eq_val")))  
+															        		 mtrcpassyn="Y";
+															           }								        
+										 
+													        if ((rs.getString("mpg_less_eq_val") !=null) && 
+															           (rs.getString("mpg_greater_eq_val") == null))
+															           {
+															        
+																         cvalue=Double.parseDouble(rs.getString("mtrc_period_val_value"));
+															        	 if (cvalue <= (rs.getDouble("mpg_less_eq_val")))  
+															        		 mtrcpassyn="Y";
+															           }		
+															}  // not equal NA
+													      } // end of null value in values
+													      if ((rs.getString("mtrc_period_val_value").equals(null)) ||
+													    	 (rs.getString("mtrc_period_val_value").trim().isEmpty())||
+													    	  rs.getString("mtrc_period_val_value").equals("N/A"))
+													      {
+													    	  mtrcpassyn="X";
+													    	  
+													      }
+										      }
 									        // only do the validation if the value is not null
 									      //  System.out.println(" value is:" +rs.getString("mtrc_period_val_value").trim() );
 									 
-									      if ((!rs.getString("mtrc_period_val_value").equals(null)) &&
+									     /* if ((!rs.getString("mtrc_period_val_value").equals(null)) &&
 									    	 (!rs.getString("mtrc_period_val_value").trim().isEmpty()))
 									      {		  
 											if (((rs.getString("data_type_token").equals("int"))  ||
@@ -364,8 +422,7 @@ public class SummaryDetail {
 											    (!rs.getString("mtrc_period_val_value").equals("N/A")))
 											{		
 									        // NOW CHECK TO SEE IF FAILED GOALS
-								
-                                        
+								           
 									        if ((rs.getString("mpg_less_eq_val") != null) && 
 									           (rs.getString("mpg_greater_eq_val") != null)) 
 									           {
@@ -396,15 +453,18 @@ public class SummaryDetail {
 											}  // not equal NA
 									      } // end of null value in values
 									      if ((rs.getString("mtrc_period_val_value").equals(null)) ||
-									    	 (rs.getString("mtrc_period_val_value").trim().isEmpty()))
+									    	 (rs.getString("mtrc_period_val_value").trim().isEmpty())||
+									    	  rs.getString("mtrc_period_val_value").equals("N/A"))
 									      {
 									    	  mtrcpassyn="X";
 									    	  
 									      }
 											
-									     if (rs.getString("mtrc_period_val_value").equals("N/A")) mtrcpassyn="X";
+									    
 									        
 									        // end checking of goals
+									         
+									         */
                                     
 						                     JSONObject jo = new JSONObject(); 
 										for (int i=1; i<numColumns+1; i++) {
