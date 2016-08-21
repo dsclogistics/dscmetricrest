@@ -1,6 +1,7 @@
 package com.dsc.mtrc.internal;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -35,12 +36,15 @@ public class ThroughPutLoad {
 		String  msg = null;
 		String theurl="";
 		String dwurl="";
-	 
 		String tmperiodid=null;
 		String dscmtrclcbldid=null;
 		String mtrcperiodid=null;
 		String insstmt=null;
 		String mtrcnayn=null;
+        StringBuffer sb = new StringBuffer();  
+        String insertSQL = null;
+        String updateSQL = null;
+        String SQL = null;
 		
 		if ((! inputJsonObj.has("packagename")) || (! inputJsonObj.has("calmonth")) || (! inputJsonObj.has("calmonth")) )
 		{
@@ -83,7 +87,7 @@ public class ThroughPutLoad {
         // check load status from DW to see if the metric is ready to load
 		
 		// String pkagename="volume";
-		/*
+	
 		msg=LoadStatus(dwurl,pkagename,previousMonth,thisyear);
 		if (! msg.equals("0"))
 		{
@@ -92,9 +96,10 @@ public class ThroughPutLoad {
 			   rb=Response.ok(msg.toString()).build();
 		       	return rb;
 		}
-			*/ 
+		
+			//System.out.println(msg);
 	    // get periodid
-		tmperiodid=metrictimeperiod(theurl,previousMonth, thisyear);
+	    tmperiodid=metrictimeperiod(theurl,previousMonth, thisyear);
 		
 
 		// get metric data
@@ -120,79 +125,87 @@ public class ThroughPutLoad {
 		}
 		
 		// get wmsvolume
-		  tput =dscwmsvolume(dwurl,previousMonth, thisyear,mtrcperiodid);
-		 
-		  
- 	       String  brkbldid= null;         
-	    	// Now you have JSON array TPUt. Go through each get the building info and string to a insert
-	        // statement and display that in system out.
-	    		    		         
-	    		String instmpt="INSERT INTO [dbo].[MTRC_METRIC_PERIOD_VALUE] "+
-                              " ([mtrc_period_id] ,[dsc_mtrc_lc_bldg_id] "+
-                              " ,[tm_period_id], [mtrc_period_val_added_dtm] "+
-                              " ,[mtrc_period_val_added_by_usr_id] ,[mtrc_period_val_upd_dtm] "+
-                              " ,[mtrc_period_val_upd_by_user_id] ,[mtrc_period_val_is_na_yn] "+
-                              " ,[mtrc_period_val_value]) VALUES (";
-	    		
-	    		float  thruputchg=0;      
-	            for(int i=0; i<tput.length(); i++)         
-		        { 
-		        	// System.out.println("The " + i + " element of the array: "+jsonArr.get(i));
-		        	JSONObject s1 =  (JSONObject) tput.get(i);
-               		 insstmt=insstmt+instmpt +mtrcperiodid +","+s1.getString("dsc_mtrc_lc_bldg_id").toString().trim() +
-               				 ","+tmperiodid +"," +
-	    	                            " getdate() ,'API','','','"+mtrcnayn+"','"+
-	    	                            s1.getString("PeriodValue").toString() +"');";
-		        	// System.out.println(" JSON RESULT FROM DSCWMSVOLUME:"+insstmt.toString());
-		        } // for each array
-	    		    		        
-	    		    		 // ========================================================= 	
-	            if (insstmt.equals(null)) insstmt=" ";
-	         System.out.println("insert is:"+insstmt);
-	         StringBuffer sb = new StringBuffer();  
-	       
-	        if (insstmt.length() > 100)
-	        {
-	        	insstmt="delete from [MTRC_METRIC_PERIOD_VALUE] where [mtrc_period_id]="+mtrcperiodid +
-	        			" and [tm_period_id]="+tmperiodid + 
-	        			" and [mtrc_period_val_added_by_usr_id]='API';" +insstmt;
-	     	
-			  Connection conn = null;
-				try {
-					conn= ConnectionManager.mtrcConn().getConnection();
-				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-	                 msg="Metric DB Connection Failed.";
-	                sb.append("{\"result\":\"FAILED\",\"resultCode\":200,\"message\":\""+msg+"\"}");
-	   	          rb=Response.ok(sb.toString()).build();
-	   	          return rb;
-				}	
+		tput =dscwmsvolume(dwurl,previousMonth, thisyear,mtrcperiodid);
+		Connection conn = null;
+		try 
+		{
+		   	
+		   conn= ConnectionManager.mtrcConn().getConnection();
+		   conn.setAutoCommit(false);
+		   updateSQL = "update mtrc_metric_period_value set mtrc_period_val_value = ?, mtrc_period_val_upd_dtm = ?, mtrc_period_val_upd_by_user_id = ?  where mtrc_period_id = ? and tm_period_id = ? and dsc_mtrc_lc_bldg_id = ? "; 
+		   insertSQL = "insert into mtrc_metric_period_value (mtrc_period_id,dsc_mtrc_lc_bldg_id,tm_period_id,mtrc_period_val_added_dtm,mtrc_period_val_added_by_usr_id,mtrc_period_val_upd_dtm,mtrc_period_val_upd_by_user_id,mtrc_period_val_is_na_yn,mtrc_period_val_value)"+
+		               "values(?,?,?,?,?,?,?,?,?)";
+		   Statement stmt = conn.createStatement(); 
+		   PreparedStatement  updatePrepStmt = conn.prepareStatement(updateSQL);
+	       PreparedStatement  insertPrepStmt = conn.prepareStatement(insertSQL);
+		   for(int i=0; i<tput.length(); i++)         
+	        { 
+	        	// System.out.println("The " + i + " element of the array: "+jsonArr.get(i));
+	        	JSONObject s1 =  (JSONObject) tput.get(i);
+	        	
+	        	 SQL = " select count(*) as row_count from mtrc_metric_period_value  where mtrc_period_id="+mtrcperiodid+
+	        	 	   " and tm_period_id ="+tmperiodid+
+	        	 	   " and dsc_mtrc_lc_bldg_id ="+ s1.getInt("dsc_mtrc_lc_bldg_id");
+	        	 System.out.println("check sql is "+SQL);
+	        	 ResultSet rs = stmt.executeQuery(SQL);
+	          while (rs.next()) 
+	       	  {      	
+	       			if(rs.getInt("row_count")>0)//check if this record already exists in the db
+	       			{
+	       				updatePrepStmt.setString(1, s1.getString("PeriodValue"));
+	       				updatePrepStmt.setTimestamp(2, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now()));
+	       				updatePrepStmt.setString(3, "API");
+	       				updatePrepStmt.setInt(4, Integer.parseInt(mtrcperiodid));
+	       				updatePrepStmt.setInt(5, Integer.parseInt(tmperiodid));
+	       				updatePrepStmt.setInt(6, s1.getInt("dsc_mtrc_lc_bldg_id"));	
+	       				updatePrepStmt.addBatch();
+	       			}
+	       			else
+	       			{
+	       				insertPrepStmt.setInt(1, Integer.parseInt(mtrcperiodid));
+	       				insertPrepStmt.setInt(2, s1.getInt("dsc_mtrc_lc_bldg_id"));	
+	       				insertPrepStmt.setInt(3, Integer.parseInt(tmperiodid));
+	       				insertPrepStmt.setTimestamp(4, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now()));
+	       				insertPrepStmt.setString(5, "API");
+	       				insertPrepStmt.setTimestamp(6, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now()));		
+	       				insertPrepStmt.setString(7, "API");
+	       				insertPrepStmt.setString(8, "N");
+	       				insertPrepStmt.setString(9, s1.getString("PeriodValue"));
+	       				insertPrepStmt.addBatch();	       					       				
+	       			}
+	       		}//end of while
+	       		rs.close();	       		
+	        	
+	        } // for each array
+		   updatePrepStmt.executeBatch();
+		   insertPrepStmt.executeBatch();
+		   conn.commit();
+		   stmt.close();
+      	   updatePrepStmt.close();
+      	   insertPrepStmt.close();
+      	   conn.close();
+		   
+		} catch (Exception e) 
+		{
 				
-		   		try
-	     		{
-	     			Statement stmt = conn.createStatement();
-	     			System.out.println("SQL STATMENT:"+insstmt);
-	     		    stmt.executeUpdate(insstmt);
-	     		     
-	     		}
-	         	 catch (SQLException e) 
-	          	{
-	          		e.printStackTrace();
-	          	}
-		   		
-		         if (conn != null) 
-		         {
-		      	   try{
-		      		   conn.close();
-		      		  } catch(SQLException e)
-		      	      {e.printStackTrace(); }
-		         } 		   		
-	        } // end if
- 	          //  responseStrBuildera=null;
-	 	            msg="Through Put (volume) Metric Loaded Successfully .";
-                sb.append("{\"result\":\"SUCCESS\",\"resultCode\":100,\"message\":\""+msg+"\"}");
-   	          rb=Response.ok(sb.toString()).build();
+			try {
+				conn.rollback();
+			} catch (SQLException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+			// TODO Auto-generated catch block
+				e.printStackTrace();
+               msg="Metric DB Connection Failed.";
+              sb.append("{\"result\":\"FAILED\",\"resultCode\":200,\"message\":\""+msg+"\"}");
+ 	          rb=Response.ok(sb.toString()).build();
+ 	          return rb;
+		}			
+
+ 
+ 	 	 msg="Through Put (volume) Metric Loaded Successfully .";
+         sb.append("{\"result\":\"SUCCESS\",\"resultCode\":100,\"message\":\""+msg+"\"}");
+   	     rb=Response.ok(sb.toString()).build();
   	return rb;
 }
 	
