@@ -27,11 +27,12 @@ import java.io.*;
 import java.net.*;
  
 import com.dsc.mtrc.dao.ConnectionManager;
+import com.dsc.mtrc.util.DateHelper;
 
-public class ThroughPutLoad {
+public class MetricAutoLoader {
 	
 		
-	public Response ThroughPutLoad(JSONObject inputJsonObj) throws JSONException {
+	public Response loadMetric(JSONObject inputJsonObj) throws JSONException {
 	    Response rb = null;
 		String  msg = null;
 		String theurl="";
@@ -45,17 +46,117 @@ public class ThroughPutLoad {
         String insertSQL = null;
         String updateSQL = null;
         String SQL = null;
-		
-		if ((! inputJsonObj.has("packagename")) || (! inputJsonObj.has("calmonth")) || (! inputJsonObj.has("calmonth")) )
+        String tptName = null;
+        String metricId = null;
+		String pkagename = null;		//pkachage name represents MTRC_METRIC.mtrc_token value
+		String dwEndpoint = null;       // End Point for a specific DW api. 
+		String loadStatusPackageName = null; //package name that DW loadstatus api can accept
+		Connection conn = null;
+
+		if (((! inputJsonObj.has("packagename"))&&(! inputJsonObj.has("mtrc_id"))) || (! inputJsonObj.has("calyear")) || (! inputJsonObj.has("calmonth")) )
 		{
 	           msg= "{\"result\":\"FAILED\",\"resultCode\":500,\"message\":\""  +
-	        		   "packagename and calmonth and calyear  json tag required for this API"  +"\"}";
+	        		   "packagename or mtrc_id and calmonth and calyear   json tags required for this API"  +"\"}";
 	           rb=Response.ok(msg.toString()).build();
 	       	return rb;			
 		}
-		String pkagename= inputJsonObj.get("packagename").toString();
-	    String previousMonth  = inputJsonObj.get("calmonth").toString();
+		if(inputJsonObj.getString("mtrc_id")!=null ||!inputJsonObj.getString("mtrc_id").isEmpty())
+		{
+			metricId = inputJsonObj.get("mtrc_id").toString();
+			SQL = "select mtrc_token" +
+				  " from  MTRC_METRIC" +
+				  " where mtrc_id = '"+ metricId+"'";
+			try
+			{
+				conn= ConnectionManager.mtrcConn().getConnection();
+				Statement stmt = conn.createStatement();
+	      		ResultSet rs = stmt.executeQuery(SQL);
+	      		while(rs.next())
+	      		{
+	      			pkagename= rs.getString("mtrc_token");
+
+	      		}
+			}
+			catch (Exception e) 
+	      	{
+	      		e.printStackTrace();
+	            msg="Cannot find metric token.";
+	            sb.append("{\"result\":\"FAILED\",\"resultCode\":200,\"message\":\""+msg+"\"}");
+		            rb=Response.ok(sb.toString()).build();
+		            if (conn != null) { try {
+						conn.close();
+					} catch (SQLException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					}} 
+		            return rb;
+	 	 
+	      	 }
+		}
+		else if(inputJsonObj.getString("packagename")!=null ||!inputJsonObj.getString("packagename").isEmpty())
+		{
+			pkagename= inputJsonObj.get("packagename").toString().trim();
+			SQL = "select mtrc_id" +
+					  " from  MTRC_METRIC" +
+					  " where mtrc_token = '"+ pkagename+"'";
+				try
+				{
+					conn= ConnectionManager.mtrcConn().getConnection();
+					Statement stmt = conn.createStatement();
+		      		ResultSet rs = stmt.executeQuery(SQL);
+		      		while(rs.next())
+		      		{
+		      			metricId= rs.getString("mtrc_id");
+
+		      		}
+				}
+				catch (Exception e) 
+		      	{
+		      		e.printStackTrace();
+		      		msg="Cannot Find Metric ID";
+		            sb.append("{\"result\":\"FAILED\",\"resultCode\":200,\"message\":\""+msg+"\"}");
+			            rb=Response.ok(sb.toString()).build();
+			            if (conn != null) { try {
+							conn.close();
+						} catch (SQLException e1) {
+							// TODO Auto-generated catch block
+							e1.printStackTrace();
+						}} 
+			            return rb;
+		 	 
+		      	 }
+			
+		}
+		else
+		{
+			  msg= "{\"result\":\"FAILED\",\"resultCode\":500,\"message\":\""  +
+	        		   "packagename or mtrc_id required for this API"  +"\"}";
+	           rb=Response.ok(msg.toString()).build();
+	       	return rb;
+		}
+	    String calMonth  = inputJsonObj.get("calmonth").toString();
 	    String thisyear  =inputJsonObj.get("calyear").toString();
+	    tptName = inputJsonObj.get("tptname").toString();
+	    switch(pkagename){
+		case "NET_FTE":
+			dwEndpoint ="dscwmsnetfte";
+			loadStatusPackageName ="netfte";			
+			break;
+		case "TRAINEES_PCT":
+			dwEndpoint = "dscwmstrainees";
+			loadStatusPackageName ="trainee";
+		     break;
+		case "THROUGHPUT_CHG_PCT":
+			dwEndpoint ="dscwmsvolume";
+			loadStatusPackageName = "volume";
+			break;
+			default:
+				 msg= "{\"result\":\"FAILED\",\"resultCode\":500,\"message\":\""  +
+		        		   "Cannot determine DW API to call."  +"\"}";
+		           rb=Response.ok(msg.toString()).build();
+		       	return rb;
+		}
+	    
       	JSONArray tput = new JSONArray();
  		 
 		try {
@@ -88,45 +189,53 @@ public class ThroughPutLoad {
 		
 		// String pkagename="volume";
 	
-		msg=LoadStatus(dwurl,pkagename,previousMonth,thisyear);
+		msg=LoadStatus(dwurl,loadStatusPackageName,calMonth,thisyear);
 		if (! msg.equals("0"))
 		{
 			 msg= "{\"result\":\"FAILED\",\"resultCode\":500,\"message\":\""  +
-	        		   pkagename +" DW load was not complete for "+previousMonth +" " +thisyear +" "  +"\"}";
+	        		   pkagename +" DW load was not complete for "+calMonth +" " +thisyear +" "  +"\"}";
 			   rb=Response.ok(msg.toString()).build();
 		       	return rb;
 		}
-		
-			//System.out.println(msg);
-	    // get periodid
-	    tmperiodid=metrictimeperiod(theurl,previousMonth, thisyear);
-		
 
-		// get metric data
-		String [] mdata=metricname(theurl,previousMonth, thisyear);
-       
-		if (mdata[0] != null)
+		
+		SQL = " select b.tm_period_id, c.mtrc_period_id "+
+			  " from MTRC_TIME_PERIOD_TYPE a "+
+		      " join MTRC_TM_PERIODS b on a.tpt_id = b.tpt_id "+
+			  " join MTRC_METRIC_PERIOD c on a.tpt_id =c.tpt_id"+
+		      " where a.tpt_name ='" +tptName +"'"+
+		      " and CONVERT(VARCHAR(10),b.tm_per_start_dtm,20)='"+DateHelper.getMonthFirstDay(calMonth, thisyear) +"'"+
+		      " and CONVERT(VARCHAR(10),tm_per_end_dtm,20)= '"+DateHelper.getMonthLastDay(calMonth, thisyear) +"'"+
+		      " and c.mtrc_id ='" +metricId +"'"; 
+		try
 		{
-			if (mdata[0].length() > 10)
-			{
-	           msg= "{\"result\":\"FAILED\",\"resultCode\":500,\"message\":\""  +
-	        		  msg  +"\"}";
-	           rb=Response.ok(msg.toString()).build();
-	           return rb;			
-			}
+			conn= ConnectionManager.mtrcConn().getConnection();
+			Statement stmt = conn.createStatement();
+      		ResultSet rs = stmt.executeQuery(SQL);
+      		while(rs.next())
+      		{
+      			mtrcperiodid= rs.getString("mtrc_period_id");
+      			tmperiodid= rs.getString("tm_period_id");
+      		}
 		}
-		else
-		{
-			String [] darray=mdata[1].split(",");
-			
- 			mtrcperiodid=darray[0];			
- 			mtrcnayn=darray[1];		
-			
-		}
+		catch (Exception e) 
+      	{
+      		e.printStackTrace();
+            msg="Cannot Find Metric Period ID or TM Period ID .";
+            sb.append("{\"result\":\"FAILED\",\"resultCode\":200,\"message\":\""+msg+"\"}");
+	            rb=Response.ok(sb.toString()).build();
+	            if (conn != null) { try {
+					conn.close();
+				} catch (SQLException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}} 
+	            return rb;
+ 	 
+      	 }
 		
 		// get wmsvolume
-		tput =dscwmsvolume(dwurl,previousMonth, thisyear,mtrcperiodid);
-		Connection conn = null;
+		tput =dscwmsvolume(dwurl,calMonth, thisyear,metricId,dwEndpoint);
 		try 
 		{
 		   	
@@ -152,7 +261,7 @@ public class ThroughPutLoad {
 	       	  {      	
 	       			if(rs.getInt("row_count")>0)//check if this record already exists in the db
 	       			{
-	       				updatePrepStmt.setString(1, s1.getString("PeriodValue"));
+	       				updatePrepStmt.setString(1, pkagename.equals("NET_FTE")?s1.getString("TOTAL_NET_FTE"):s1.getString("PeriodValue"));
 	       				updatePrepStmt.setTimestamp(2, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now()));
 	       				updatePrepStmt.setString(3, "API");
 	       				updatePrepStmt.setInt(4, Integer.parseInt(mtrcperiodid));
@@ -170,7 +279,7 @@ public class ThroughPutLoad {
 	       				insertPrepStmt.setTimestamp(6, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now()));		
 	       				insertPrepStmt.setString(7, "API");
 	       				insertPrepStmt.setString(8, "N");
-	       				insertPrepStmt.setString(9, s1.getString("PeriodValue"));
+	       				insertPrepStmt.setString(9, pkagename.equals("NET_FTE")?s1.getString("TOTAL_NET_FTE"):s1.getString("PeriodValue"));
 	       				insertPrepStmt.addBatch();	       					       				
 	       			}
 	       		}//end of while
@@ -203,7 +312,7 @@ public class ThroughPutLoad {
 		}			
 
  
- 	 	 msg="Through Put (volume) Metric Loaded Successfully .";
+ 	 	 msg="Metric Loaded Successfully .";
          sb.append("{\"result\":\"SUCCESS\",\"resultCode\":100,\"message\":\""+msg+"\"}");
    	     rb=Response.ok(sb.toString()).build();
   	return rb;
@@ -323,7 +432,7 @@ public class ThroughPutLoad {
 	 
  }
 //***********************************************************************************************
-  public JSONArray dscwmsvolume(String dwurl,String previousMonth, String thisyear,String metricid)
+  public JSONArray dscwmsvolume(String dwurl,String previousMonth, String thisyear,String metricid, String endpoint)
   {
       String   msg = null;
 		JSONObject api = new JSONObject();
@@ -341,13 +450,14 @@ public class ThroughPutLoad {
 		String mtrcperiodid=null;
 		String insstmt=null;
 		String mtrcnayn=null;
+		String jsonArrayName =null;
     		 // =========================================================   
 		    		         
 		    		  // call DW metric for each of the json array call wms building to get building to insert data
 	 
 		    		    		    url = null;
 		    		    			try {
-		    		    				url = new URL(dwurl + "dscwmsvolume");
+		    		    				url = new URL(dwurl + endpoint);
 		    		    			} catch (MalformedURLException e1) {
 		    		    				// TODO Auto-generated catch block
 		    		    				e1.printStackTrace();
@@ -417,10 +527,22 @@ public class ThroughPutLoad {
 		    		    		      try
 		    		    		      {
 		    		    		        if (data != null)     api = new JSONObject(responseStrBuilderb.toString());
-		    		    	 
-		    		    		         if(api.has("DSCWMSVolumes")) 
+		    		    		        switch(endpoint)
+		    		    		        {
+		    		    		       
+		    		    				   case "dscwmsvolume":
+		    		    					   jsonArrayName ="DSCWMSVolumes";		    		    					
+		    		    				   break;
+		    		    				   case "dscwmstrainees":
+		    		    					   jsonArrayName ="DSCWMSTrainees";
+  		    		    				    break;
+		    		    				   case "dscwmsnetfte":
+		    		    					jsonArrayName ="DSCWMSNetFTE";
+		    		    				   break;		    		    		        
+		    		    		        }		    		    	 
+		    		    		         if(api.has(jsonArrayName)) 
 		    		    		        	 {
-		    		    		        	 tput=(JSONArray) api.get("DSCWMSVolumes");    
+		    		    		        	 tput=(JSONArray) api.get(jsonArrayName);    
 		    		    		        	 }
 		    		    		         else
 		    		    		         {
@@ -520,7 +642,7 @@ public class ThroughPutLoad {
 		    				} catch (IOException e1) {
 		    					// TODO Auto-generated catch block
 		    					e1.printStackTrace();
-			    				msg[0]="Read Json string failed from metricname url:"+url;
+			    				msg[0]="Read Json string failed from metricname url:"+url+" "+e1.getMessage();
 			    				return msg;
 		    				}
 		    				  data=null;

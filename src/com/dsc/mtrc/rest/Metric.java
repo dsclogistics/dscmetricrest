@@ -213,7 +213,7 @@ public class Metric {
 	}
 
 //****************  Load Throughput
-@Path("/throughputload")
+@Path("/autouploadmetric")
 @POST
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
@@ -222,8 +222,8 @@ public class Metric {
 	 String msg = null;
 	java.util.Date date= new java.util.Date();
 	java.util.Date sdate=new Timestamp(date.getTime());  
-	ThroughPutLoad mtimepeirod  = new ThroughPutLoad();
-	rb =mtimepeirod.ThroughPutLoad(inputJsonObj);
+	MetricAutoLoader mtimepeirod  = new MetricAutoLoader();
+	rb =mtimepeirod.loadMetric(inputJsonObj);
   //  System.out.println("Message :"+rb);
 	 return rb;
 	  
