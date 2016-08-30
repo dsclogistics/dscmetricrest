@@ -139,8 +139,7 @@ public class MetricPeriodClose {
 						// TODO Auto-generated catch block
 						e1.printStackTrace();
 					}} 
-		            return rb;
-	 	 
+		            return rb;	 	 
 	      	 }
 	      SQL=" select tm_period_id" +
 	      	  " from mtrc_tm_periods"+
@@ -504,6 +503,7 @@ public class MetricPeriodClose {
       			e.printStackTrace();
           		try {
 					conn.rollback();
+					conn.close();
 				} catch (SQLException e1) {
 					// TODO Auto-generated catch block
 					e1.printStackTrace();

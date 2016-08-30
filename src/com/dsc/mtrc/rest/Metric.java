@@ -224,7 +224,7 @@ public class Metric {
 	java.util.Date sdate=new Timestamp(date.getTime());  
 	MetricAutoLoader mtimepeirod  = new MetricAutoLoader();
 	rb =mtimepeirod.loadMetric(inputJsonObj);
-  //  System.out.println("Message :"+rb);
+    System.out.println("Message :"+rb);
 	 return rb;
 	  
 	}

@@ -38,6 +38,7 @@ public class MetricAuthorization  {
 			 Connection conn = null;
  				try {
 					conn= ConnectionManager.mtrcConn().getConnection();
+					conn.setReadOnly(true);
 				} catch (Exception e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -57,7 +58,7 @@ public class MetricAuthorization  {
  
     		  String SQL =" SELECT   [mma_id] ,mma.[mtrc_prod_id] ,[mma_dsc_ad_username] " +
     			    	   ",[mma_eff_start_date] ,[mma_eff_end_date],mp.prod_name "+
-    			    	   " ,mmpr.mtrc_period_name, mmp.mtrc_period_id "+
+    			    	   " ,mmpr.mtrc_period_name, mmp.mtrc_period_id, mmpr.mtrc_id  "+
     			    	  "  FROM [dbo].[MTRC_MGMT_AUTH] mma, "+
     			    	  "  [dbo].[MTRC_METRIC_PRODUCTS] mmp, "+
     			    	  "	[dbo].[MTRC_PRODUCT] mp, "+
@@ -99,13 +100,20 @@ public class MetricAuthorization  {
   						obj1.put("authorizationdetails",json);
 		 
 			              rs.close();		     
-			             stmt.close();
+			             stmt.close();			             
 			             if (conn != null) { conn.close();} 
       
 				  }
 				   catch (SQLException e) {
+					   
 					// TODO Auto-generated catch block
 					e.printStackTrace();
+					try {
+						 if (conn != null) { conn.close();} 
+					} catch (SQLException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					}
 	                String msg="Metric DB Query Failed.";
 	                sb.append("{\"result\":\"FAILED\",\"resultCode\":200,\"message\":\""+msg+"\"");
 	   	            rb=Response.ok(obj1.toString()).build();

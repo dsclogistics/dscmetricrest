@@ -42,6 +42,7 @@ public class BuildingLc  {
 			 Connection conn = null;
  				try {
 					conn= ConnectionManager.mtrcConn().getConnection();
+					conn.setReadOnly(true);
 				} catch (Exception e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -107,6 +108,11 @@ public class BuildingLc  {
 				  }
 				   catch (SQLException e) {
 					// TODO Auto-generated catch block
+
+			      	   try{
+			      		   conn.close();
+			      		  } catch(SQLException e1)
+			      	      {e1.printStackTrace(); }
 					e.printStackTrace();
 	                String msg="Metric DB Query Failed.";
 	                sb.append("{\"result\":\"FAILED\",\"resultCode\":200,\"message\":\""+msg+"\"");

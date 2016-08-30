@@ -58,6 +58,7 @@ public class MetricTimePeriod {
 			 Connection conn = null;
 				try {
 					conn= ConnectionManager.mtrcConn().getConnection();
+					conn.setReadOnly(true);
 				} catch (Exception e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();

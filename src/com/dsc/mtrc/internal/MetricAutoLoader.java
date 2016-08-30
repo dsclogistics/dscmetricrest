@@ -10,6 +10,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
+import java.util.List;
 
 import javax.naming.Context;
 import javax.naming.InitialContext;
@@ -51,6 +52,7 @@ public class MetricAutoLoader {
 		String pkagename = null;		//pkachage name represents MTRC_METRIC.mtrc_token value
 		String dwEndpoint = null;       // End Point for a specific DW api. 
 		String loadStatusPackageName = null; //package name that DW loadstatus api can accept
+		List<Integer> editableBuildings = new ArrayList<Integer>();		
 		Connection conn = null;
 
 		if (((! inputJsonObj.has("packagename"))&&(! inputJsonObj.has("mtrc_id"))) || (! inputJsonObj.has("calyear")) || (! inputJsonObj.has("calmonth")) )
@@ -65,7 +67,7 @@ public class MetricAutoLoader {
 			metricId = inputJsonObj.get("mtrc_id").toString();
 			SQL = "select mtrc_token" +
 				  " from  MTRC_METRIC" +
-				  " where mtrc_id = '"+ metricId+"'";
+				  " where mtrc_id = "+ metricId;
 			try
 			{
 				conn= ConnectionManager.mtrcConn().getConnection();
@@ -76,6 +78,23 @@ public class MetricAutoLoader {
 	      			pkagename= rs.getString("mtrc_token");
 
 	      		}
+	      		rs.close();
+	      		stmt.close();
+	      		conn.close();
+	      		if(pkagename ==null){	      			
+		            msg="Invalid value for metric id or metric token.";
+		            sb.append("{\"result\":\"FAILED\",\"resultCode\":200,\"message\":\""+msg+"\"}");
+			            rb=Response.ok(sb.toString()).build();
+			            if (conn != null) { try {
+							conn.close();
+						} catch (SQLException e1) {
+							// TODO Auto-generated catch block
+							e1.printStackTrace();
+						}} 
+			            return rb;
+	      			
+	      		}
+	      		
 			}
 			catch (Exception e) 
 	      	{
@@ -109,6 +128,9 @@ public class MetricAutoLoader {
 		      			metricId= rs.getString("mtrc_id");
 
 		      		}
+		      		rs.close();
+		      		stmt.close();
+		      		conn.close();
 				}
 				catch (Exception e) 
 		      	{
@@ -137,6 +159,8 @@ public class MetricAutoLoader {
 	    String calMonth  = inputJsonObj.get("calmonth").toString();
 	    String thisyear  =inputJsonObj.get("calyear").toString();
 	    tptName = inputJsonObj.get("tptname").toString();
+	    
+	    //now we need to figure our what data warehouse end point and package name for load status are based on package name(metric token)
 	    switch(pkagename){
 		case "NET_FTE":
 			dwEndpoint ="dscwmsnetfte";
@@ -206,7 +230,7 @@ public class MetricAutoLoader {
 		      " where a.tpt_name ='" +tptName +"'"+
 		      " and CONVERT(VARCHAR(10),b.tm_per_start_dtm,20)='"+DateHelper.getMonthFirstDay(calMonth, thisyear) +"'"+
 		      " and CONVERT(VARCHAR(10),tm_per_end_dtm,20)= '"+DateHelper.getMonthLastDay(calMonth, thisyear) +"'"+
-		      " and c.mtrc_id ='" +metricId +"'"; 
+		      " and c.mtrc_id =" +metricId; 
 		try
 		{
 			conn= ConnectionManager.mtrcConn().getConnection();
@@ -217,6 +241,9 @@ public class MetricAutoLoader {
       			mtrcperiodid= rs.getString("mtrc_period_id");
       			tmperiodid= rs.getString("tm_period_id");
       		}
+      		rs.close();
+      		stmt.close();
+      		conn.close();
 		}
 		catch (Exception e) 
       	{
@@ -233,8 +260,52 @@ public class MetricAutoLoader {
 	            return rb;
  	 
       	 }
+		/* before we call dw api and to get all the metric data for buildings we need to determine the list of buildings
+		 * that we are allowed to update
+		 * if editable flag is Y or building is not effective we DO NOT update the table mtrc_metric_period_value.
+		*/
 		
-		// get wmsvolume
+		//So, lets get the list of buildings we're allowed to update first:
+		//We only need to select values with editable flag set to N
+		SQL = "select bm.dsc_mtrc_lc_bldg_id as building_id"
+				+ " from MTRC_BLDG_MTRC_PERIOD bm "
+				+ " join DSC_MTRC_LC_BLDG b"
+				+ " on bm.dsc_mtrc_lc_bldg_id = b.dsc_mtrc_lc_bldg_id"
+				+ " where bm.mtrc_period_id ="+mtrcperiodid
+				+ " and bm.bmp_is_editable_yn ='N'"
+				+ "  and GETDATE() between b.dsc_mtrc_lc_bldg_eff_start_dt and b.dsc_mtrc_lc_bldg_eff_end_dt";
+		
+		try
+		{
+			 conn= ConnectionManager.mtrcConn().getConnection();
+			 Statement stmt = conn.createStatement();
+			 ResultSet rs = stmt.executeQuery(SQL);
+			 while(rs.next())
+			 {				 
+				 editableBuildings.add(rs.getInt("building_id"));			 
+			 }
+			 rs.close();
+	      	 stmt.close();
+	      	 conn.close();			 			 
+		}//end of try
+		catch (Exception e) 
+      	{
+      		e.printStackTrace();
+            msg="Cannot find the list of buildings to update .";
+            sb.append("{\"result\":\"FAILED\",\"resultCode\":200,\"message\":\""+msg+"\"}");
+	            rb=Response.ok(sb.toString()).build();
+	            if (conn != null) { try {
+					conn.close();
+				} catch (SQLException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}} 
+	            return rb;
+ 	 
+      	 }//end of catch
+		
+		
+		// get metric
 		tput =dscwmsvolume(dwurl,calMonth, thisyear,metricId,dwEndpoint);
 		try 
 		{
@@ -245,63 +316,86 @@ public class MetricAutoLoader {
 		   insertSQL = "insert into mtrc_metric_period_value (mtrc_period_id,dsc_mtrc_lc_bldg_id,tm_period_id,mtrc_period_val_added_dtm,mtrc_period_val_added_by_usr_id,mtrc_period_val_upd_dtm,mtrc_period_val_upd_by_user_id,mtrc_period_val_is_na_yn,mtrc_period_val_value)"+
 		               "values(?,?,?,?,?,?,?,?,?)";
 		   Statement stmt = conn.createStatement(); 
-		   PreparedStatement  updatePrepStmt = conn.prepareStatement(updateSQL);
+		   PreparedStatement  updatePrepStmt = conn.prepareStatement(updateSQL);		   
 	       PreparedStatement  insertPrepStmt = conn.prepareStatement(insertSQL);
+	       int updateCounter = 0;
+	       int insertCounter = 0;
 		   for(int i=0; i<tput.length(); i++)         
 	        { 
-	        	// System.out.println("The " + i + " element of the array: "+jsonArr.get(i));
 	        	JSONObject s1 =  (JSONObject) tput.get(i);
 	        	
-	        	 SQL = " select count(*) as row_count from mtrc_metric_period_value  where mtrc_period_id="+mtrcperiodid+
-	        	 	   " and tm_period_id ="+tmperiodid+
-	        	 	   " and dsc_mtrc_lc_bldg_id ="+ s1.getInt("dsc_mtrc_lc_bldg_id");
-	        	 System.out.println("check sql is "+SQL);
-	        	 ResultSet rs = stmt.executeQuery(SQL);
-	          while (rs.next()) 
-	       	  {      	
-	       			if(rs.getInt("row_count")>0)//check if this record already exists in the db
-	       			{
-	       				updatePrepStmt.setString(1, pkagename.equals("NET_FTE")?s1.getString("TOTAL_NET_FTE"):s1.getString("PeriodValue"));
-	       				updatePrepStmt.setTimestamp(2, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now()));
-	       				updatePrepStmt.setString(3, "API");
-	       				updatePrepStmt.setInt(4, Integer.parseInt(mtrcperiodid));
-	       				updatePrepStmt.setInt(5, Integer.parseInt(tmperiodid));
-	       				updatePrepStmt.setInt(6, s1.getInt("dsc_mtrc_lc_bldg_id"));	
-	       				updatePrepStmt.addBatch();
-	       			}
-	       			else
-	       			{
-	       				insertPrepStmt.setInt(1, Integer.parseInt(mtrcperiodid));
-	       				insertPrepStmt.setInt(2, s1.getInt("dsc_mtrc_lc_bldg_id"));	
-	       				insertPrepStmt.setInt(3, Integer.parseInt(tmperiodid));
-	       				insertPrepStmt.setTimestamp(4, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now()));
-	       				insertPrepStmt.setString(5, "API");
-	       				insertPrepStmt.setTimestamp(6, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now()));		
-	       				insertPrepStmt.setString(7, "API");
-	       				insertPrepStmt.setString(8, "N");
-	       				insertPrepStmt.setString(9, pkagename.equals("NET_FTE")?s1.getString("TOTAL_NET_FTE"):s1.getString("PeriodValue"));
-	       				insertPrepStmt.addBatch();	       					       				
-	       			}
-	       		}//end of while
-	       		rs.close();	       		
-	        	
+	        	if(!editableBuildings.isEmpty() && (editableBuildings.indexOf(s1.getInt("dsc_mtrc_lc_bldg_id"))!=-1))
+	        	  {//if list of editable buildings is not empty 
+	        		     //and building id returned by dw api is in the list of editable buildings
+	        		SQL = " select count(*) as row_count from mtrc_metric_period_value  where mtrc_period_id="+mtrcperiodid+
+	 	        	 	   " and tm_period_id ="+tmperiodid+
+	 	        	 	   " and dsc_mtrc_lc_bldg_id ="+ s1.getString("dsc_mtrc_lc_bldg_id");
+	 	        	 System.out.println("check sql is "+SQL);
+	 	        	 ResultSet rs = stmt.executeQuery(SQL);
+	 	             while (rs.next()) 
+	 		       	  {      
+	 		       			if(rs.getInt("row_count")>0)//check if this record already exists in the db
+	 		       			{
+	 		       				updateCounter++;
+	 		       				updatePrepStmt.setString(1, pkagename.equals("NET_FTE")?s1.getString("TOTAL_NET_FTE"):s1.getString("PeriodValue"));
+	 		       				updatePrepStmt.setTimestamp(2, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now()));
+	 		       				updatePrepStmt.setString(3, "API");
+	 		       				updatePrepStmt.setInt(4, Integer.parseInt(mtrcperiodid));
+	 		       				updatePrepStmt.setInt(5, Integer.parseInt(tmperiodid));
+	 		       				updatePrepStmt.setInt(6, s1.getInt("dsc_mtrc_lc_bldg_id"));	
+	 		       				updatePrepStmt.addBatch();
+	 		       			}
+	 		       			else
+	 		       			{
+	 		       				insertCounter++;
+	 		       				insertPrepStmt.setInt(1, Integer.parseInt(mtrcperiodid));
+	 		       				insertPrepStmt.setInt(2, s1.getInt("dsc_mtrc_lc_bldg_id"));	
+	 		       				insertPrepStmt.setInt(3, Integer.parseInt(tmperiodid));
+	 		       				insertPrepStmt.setTimestamp(4, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now()));
+	 		       				insertPrepStmt.setString(5, "API");
+	 		       				insertPrepStmt.setTimestamp(6, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now()));		
+	 		       				insertPrepStmt.setString(7, "API");
+	 		       				insertPrepStmt.setString(8, "N");
+	 		       				insertPrepStmt.setString(9, pkagename.equals("NET_FTE")?s1.getString("TOTAL_NET_FTE"):s1.getString("PeriodValue"));
+	 		       				insertPrepStmt.addBatch();	  
+	 		       			}
+	 		       		}//end of while
+	 	                rs.close();	 	        		
+	        	  }
+	        
 	        } // for each array
-		   updatePrepStmt.executeBatch();
-		   insertPrepStmt.executeBatch();
+		   if(updateCounter>0){
+			   
+			   updatePrepStmt.executeBatch();
+		   }
+		   if(insertCounter>0){
+			   
+			   insertPrepStmt.executeBatch();
+		   }		  
 		   conn.commit();
 		   stmt.close();
       	   updatePrepStmt.close();
       	   insertPrepStmt.close();
-      	   conn.close();
-		   
+      	   conn.close();		   
 		} catch (Exception e) 
 		{
 				
 			try {
 				conn.rollback();
+				conn.close();
 			} catch (SQLException e1) {
 				// TODO Auto-generated catch block
+				 if (conn != null) { try {
+ 					conn.close();
+ 				} catch (SQLException e1c) {
+ 					// TODO Auto-generated catch block
+ 					e1c.printStackTrace();
+ 				}}
 				e1.printStackTrace();
+				 msg="Metric DB Connection Failed.";
+	              sb.append("{\"result\":\"FAILED\",\"resultCode\":200,\"message\":\""+msg+"\"}");
+	 	          rb=Response.ok(sb.toString()).build();
+	 	          return rb;
 			}
 			// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -311,7 +405,7 @@ public class MetricAutoLoader {
  	          return rb;
 		}			
 
- 
+         System.out.println("Success");
  	 	 msg="Metric Loaded Successfully .";
          sb.append("{\"result\":\"SUCCESS\",\"resultCode\":100,\"message\":\""+msg+"\"}");
    	     rb=Response.ok(sb.toString()).build();

@@ -112,6 +112,13 @@ public class MetricName  {
 
 				  }
 				   catch (SQLException e) {
+				        if (conn != null) 
+				         {
+				      	   try{
+				      		   conn.close();
+				      		  } catch(SQLException e1)
+				      	      {e1.printStackTrace(); }
+				         } 
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 	                String msg="Metric DB Query Failed.";
