@@ -610,6 +610,7 @@ public class SummaryDetail {
 										  obj1.put("buildings",json1);
 										  obj1.put("metrics",json);			
 										  obj1.put("buildingsmetrics",json2);	
+										  stmt.close();
 							       rb=Response.ok(obj1.toString()).build();
 						            if (conn != null) { try {
 										conn.close();

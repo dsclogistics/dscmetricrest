@@ -541,6 +541,7 @@ public class AllMetrics {
 					} // while loop
 
 					  rs.close();
+					  stmt.close();
 		    }
 		    catch(Exception e)
 		    {
@@ -576,6 +577,7 @@ public class AllMetrics {
 					} // while loop
 
 					  rs.close();
+					  stmt.close();
 		    }
 		    catch(Exception e)
 		    {
@@ -611,6 +613,7 @@ public class AllMetrics {
 					} // while loop
 
 					  rs.close();
+					  stmt.close();
 		    }
 		    catch(Exception e)
 		    {

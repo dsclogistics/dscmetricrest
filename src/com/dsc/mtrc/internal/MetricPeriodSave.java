@@ -33,7 +33,7 @@ public class MetricPeriodSave  {
 		 StringBuffer sb = new StringBuffer();
 		 String [] msg = new String[2];
 		// JSONObject obj1 = new JSONObject();
-		 
+		 System.out.println(inputJsonObj);
 		 Connection conn = null;
 			try {
 				conn= ConnectionManager.mtrcConn().getConnection();
@@ -153,6 +153,7 @@ public class MetricPeriodSave  {
      			Statement stmt = conn.createStatement();
      		    stmt.executeUpdate(insupd);
      		     loccount++;
+     		     stmt.close();
      		}
          	 catch (SQLException e) 
           	{

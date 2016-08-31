@@ -222,6 +222,7 @@ public class MetricPeriod  {
 					} // while loop
 
 					  rs.close();
+					  
 					// now get status for prior or next period status
 			      int tmpidp=tmpid-1;
 			      int tmpidn=tmpid+1;

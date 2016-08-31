@@ -395,7 +395,7 @@ public class MetricPeriodClose {
           		e.printStackTrace();
                 msg="Metric DB Connection Failed.";
                 sb.append("{\"result\":\"FAILED\",\"resultCode\":200,\"message\":\""+msg+"\"}");
-    	            rb=Response.ok(sb.toString()).build();
+    	            rb=Response.ok(sb.toString()).build();  	            
     	            if (conn != null) { try {
     					conn.close();
     				} catch (SQLException e1c) {
@@ -494,8 +494,8 @@ public class MetricPeriodClose {
           		pstmt.executeBatch();
           		stmt.executeUpdate(SQL);
           		conn.commit();
-          		pstmt.close();
-          		rs.close();          		
+          		rs.close();         
+          		pstmt.close();         		 		
              	stmt.close();         		 
           	}//end of try
       		catch(Exception e)

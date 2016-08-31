@@ -547,7 +547,8 @@ public class BuildingSummary {
 													 obj1.put("dsc_mtrc_lc_bldg_id",dsplybuildingid);
 
 													 
-										              rs.close();											  
+										              rs.close();
+										              stmt.close();
 										  
 										  String sdate1="JANUARY-"+calyear;
 										  String sdate2="JANUARY-"+calyear;
@@ -646,6 +647,7 @@ public class BuildingSummary {
 					} // while loop
 
 					  rs.close();
+					  stmt.close();
 		    }
 		    catch(Exception e)
 		    {
@@ -681,6 +683,7 @@ public class BuildingSummary {
 					} // while loop
 
 					  rs.close();
+					  stmt.close();
 		    }
 		    catch(Exception e)
 		    {
@@ -716,6 +719,7 @@ public class BuildingSummary {
 					} // while loop
 
 					  rs.close();
+					  stmt.close();
 		    }
 		    catch(Exception e)
 		    {

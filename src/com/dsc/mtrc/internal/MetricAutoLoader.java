@@ -54,6 +54,19 @@ public class MetricAutoLoader {
 		String loadStatusPackageName = null; //package name that DW loadstatus api can accept
 		List<Integer> editableBuildings = new ArrayList<Integer>();		
 		Connection conn = null;
+		Statement stmt = null;
+		ResultSet rs = null;
+		try {
+			conn= ConnectionManager.mtrcConn().getConnection();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+            msg="Metric DB Connection Failed.";
+            sb.append("{\"result\":\"FAILED\",\"resultCode\":200,\"message\":\""+msg+"\"}");
+	            rb=Response.ok(sb.toString()).build();
+	            return rb;
+
+		}
 
 		if (((! inputJsonObj.has("packagename"))&&(! inputJsonObj.has("mtrc_id"))) || (! inputJsonObj.has("calyear")) || (! inputJsonObj.has("calmonth")) )
 		{
@@ -70,9 +83,9 @@ public class MetricAutoLoader {
 				  " where mtrc_id = "+ metricId;
 			try
 			{
-				conn= ConnectionManager.mtrcConn().getConnection();
-				Statement stmt = conn.createStatement();
-	      		ResultSet rs = stmt.executeQuery(SQL);
+				//conn= ConnectionManager.mtrcConn().getConnection();
+				stmt = conn.createStatement();
+	      	    rs = stmt.executeQuery(SQL);
 	      		while(rs.next())
 	      		{
 	      			pkagename= rs.getString("mtrc_token");
@@ -80,7 +93,7 @@ public class MetricAutoLoader {
 	      		}
 	      		rs.close();
 	      		stmt.close();
-	      		conn.close();
+	      		//conn.close();
 	      		if(pkagename ==null){	      			
 		            msg="Invalid value for metric id or metric token.";
 		            sb.append("{\"result\":\"FAILED\",\"resultCode\":200,\"message\":\""+msg+"\"}");
@@ -120,9 +133,9 @@ public class MetricAutoLoader {
 					  " where mtrc_token = '"+ pkagename+"'";
 				try
 				{
-					conn= ConnectionManager.mtrcConn().getConnection();
-					Statement stmt = conn.createStatement();
-		      		ResultSet rs = stmt.executeQuery(SQL);
+					//conn= ConnectionManager.mtrcConn().getConnection();
+					stmt = conn.createStatement();
+		      		rs = stmt.executeQuery(SQL);
 		      		while(rs.next())
 		      		{
 		      			metricId= rs.getString("mtrc_id");
@@ -130,7 +143,7 @@ public class MetricAutoLoader {
 		      		}
 		      		rs.close();
 		      		stmt.close();
-		      		conn.close();
+		      		//conn.close();
 				}
 				catch (Exception e) 
 		      	{
@@ -233,9 +246,9 @@ public class MetricAutoLoader {
 		      " and c.mtrc_id =" +metricId; 
 		try
 		{
-			conn= ConnectionManager.mtrcConn().getConnection();
-			Statement stmt = conn.createStatement();
-      		ResultSet rs = stmt.executeQuery(SQL);
+			//conn= ConnectionManager.mtrcConn().getConnection();
+			stmt = conn.createStatement();
+      		rs = stmt.executeQuery(SQL);
       		while(rs.next())
       		{
       			mtrcperiodid= rs.getString("mtrc_period_id");
@@ -243,7 +256,7 @@ public class MetricAutoLoader {
       		}
       		rs.close();
       		stmt.close();
-      		conn.close();
+      		//conn.close();
 		}
 		catch (Exception e) 
       	{
@@ -266,7 +279,7 @@ public class MetricAutoLoader {
 		*/
 		
 		//So, lets get the list of buildings we're allowed to update first:
-		//We only need to select values with editable flag set to N
+		//We only need to select values for active buildings with editable flag set to N
 		SQL = "select bm.dsc_mtrc_lc_bldg_id as building_id"
 				+ " from MTRC_BLDG_MTRC_PERIOD bm "
 				+ " join DSC_MTRC_LC_BLDG b"
@@ -277,16 +290,16 @@ public class MetricAutoLoader {
 		
 		try
 		{
-			 conn= ConnectionManager.mtrcConn().getConnection();
-			 Statement stmt = conn.createStatement();
-			 ResultSet rs = stmt.executeQuery(SQL);
+			 //conn= ConnectionManager.mtrcConn().getConnection();
+			 stmt = conn.createStatement();
+			 rs = stmt.executeQuery(SQL);
 			 while(rs.next())
 			 {				 
 				 editableBuildings.add(rs.getInt("building_id"));			 
 			 }
 			 rs.close();
 	      	 stmt.close();
-	      	 conn.close();			 			 
+	      	 //conn.close();			 			 
 		}//end of try
 		catch (Exception e) 
       	{
@@ -310,12 +323,12 @@ public class MetricAutoLoader {
 		try 
 		{
 		   	
-		   conn= ConnectionManager.mtrcConn().getConnection();
+		   //conn= ConnectionManager.mtrcConn().getConnection();
 		   conn.setAutoCommit(false);
 		   updateSQL = "update mtrc_metric_period_value set mtrc_period_val_value = ?, mtrc_period_val_upd_dtm = ?, mtrc_period_val_upd_by_user_id = ?  where mtrc_period_id = ? and tm_period_id = ? and dsc_mtrc_lc_bldg_id = ? "; 
 		   insertSQL = "insert into mtrc_metric_period_value (mtrc_period_id,dsc_mtrc_lc_bldg_id,tm_period_id,mtrc_period_val_added_dtm,mtrc_period_val_added_by_usr_id,mtrc_period_val_upd_dtm,mtrc_period_val_upd_by_user_id,mtrc_period_val_is_na_yn,mtrc_period_val_value)"+
 		               "values(?,?,?,?,?,?,?,?,?)";
-		   Statement stmt = conn.createStatement(); 
+		   stmt = conn.createStatement(); 
 		   PreparedStatement  updatePrepStmt = conn.prepareStatement(updateSQL);		   
 	       PreparedStatement  insertPrepStmt = conn.prepareStatement(insertSQL);
 	       int updateCounter = 0;
@@ -331,7 +344,7 @@ public class MetricAutoLoader {
 	 	        	 	   " and tm_period_id ="+tmperiodid+
 	 	        	 	   " and dsc_mtrc_lc_bldg_id ="+ s1.getString("dsc_mtrc_lc_bldg_id");
 	 	        	 System.out.println("check sql is "+SQL);
-	 	        	 ResultSet rs = stmt.executeQuery(SQL);
+	 	        	 rs = stmt.executeQuery(SQL);
 	 	             while (rs.next()) 
 	 		       	  {      
 	 		       			if(rs.getInt("row_count")>0)//check if this record already exists in the db
@@ -371,11 +384,11 @@ public class MetricAutoLoader {
 		   if(insertCounter>0){
 			   
 			   insertPrepStmt.executeBatch();
-		   }		  
-		   conn.commit();
+		   }
 		   stmt.close();
       	   updatePrepStmt.close();
       	   insertPrepStmt.close();
+		   conn.commit();		   
       	   conn.close();		   
 		} catch (Exception e) 
 		{
@@ -403,7 +416,26 @@ public class MetricAutoLoader {
               sb.append("{\"result\":\"FAILED\",\"resultCode\":200,\"message\":\""+msg+"\"}");
  	          rb=Response.ok(sb.toString()).build();
  	          return rb;
-		}			
+		}
+		finally{
+			 try {
+			        if (rs != null)
+			            rs.close();
+			    } catch (Exception e) {
+			        e.printStackTrace();
+			    }
+			 try {
+			        if (stmt != null)
+			            stmt.close();
+			    } catch (Exception e) {
+			    	e.printStackTrace();}
+			 try {
+			        if (conn != null)
+			        	conn.close();
+			    } catch (Exception e) {
+			    	e.printStackTrace();}
+			 
+		}
 
          System.out.println("Success");
  	 	 msg="Metric Loaded Successfully .";
