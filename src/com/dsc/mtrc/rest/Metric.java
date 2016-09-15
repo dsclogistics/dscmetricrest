@@ -42,15 +42,7 @@ public class Metric {
 	@Produces(MediaType.TEXT_HTML)
 	public String returnTitle()
 	{
-	//ServletContext sc = getServletContext();
-	//String testNameValue = sc.getInitParameter("testName");
 	java.util.Date date= new java.util.Date();
-	/* 
-	APIEvent R1 = new APIEvent( "Thread-1");
-   R1.start();
-  	java.util.Date date= new java.util.Date();
-	 	System.out.println(" Return back to user at "+new Timestamp(date.getTime()));
-	 	 */
 		return "<p>Default LocalHost Metric Service</p>"+new Timestamp(date.getTime());
 	}
 
@@ -92,6 +84,17 @@ public class Metric {
 	     return rb;
 	  
 	}
+//****************  All Metric Metric Periods
+@Path("/mmperiods")
+@GET
+@Produces(MediaType.APPLICATION_JSON)
+public Response getAllMMperiods ()throws Exception
+{
+	 Response rb = null;
+	 AllMetricPeriods amp = new AllMetricPeriods();
+	 rb=amp.getAllMetricPeriods();
+	 return rb;
+}
 //****************  Time  Peirod
 @Path("/timeperiod")
 @POST
@@ -129,6 +132,7 @@ public class Metric {
 	}
 
 
+
 //****************  Metric Period
 @Path("/metricperiod")
 @POST
@@ -161,7 +165,7 @@ public class Metric {
 	  
 	}
 
-//****************  Metric  Period Save
+//****************  Metric Period Save
 @Path("/metricperiodsave")
 @POST
 	@Consumes(MediaType.APPLICATION_JSON)
@@ -311,4 +315,103 @@ public class Metric {
 	 return rb;
 	  
 	}
+//****************  All Reasons
+@Path("/reasons")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response listAllReason(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 ReasonManager reasonManager  = new ReasonManager();
+	 rb =reasonManager.getReason(inputJsonObj);
+     System.out.println("Message :"+rb);
+	 return rb;
+	}
+//****************  All Assigned Reasons
+@Path("/assignedreasons")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response listAllAssignedReason(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 ReasonManager reasonManager  = new ReasonManager();
+	 rb =reasonManager.getAssignedReason(inputJsonObj);
+     System.out.println("Message :"+rb);
+	 return rb;
+	}
+//****************  Save/Update Assigned Reasons
+@Path("/saveassignedreason")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response saveAssignedReason(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 ReasonManager reasonManager  = new ReasonManager();
+	 rb =reasonManager.addUpdateAssignedReason(inputJsonObj);
+     System.out.println("Message :"+rb);
+	 return rb;
+	}
+//****************  Remove Assigned Reasons
+@Path("/removeassignedreason")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response removeAssignedReason(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 ReasonManager reasonManager  = new ReasonManager();
+	 rb =reasonManager.removeAssignedReason(inputJsonObj);
+     System.out.println("Message :"+rb);
+	 return rb;
+	}
+//****************  Add  Reason
+@Path("/savereason")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response saveReason(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 ReasonManager reasonManager  = new ReasonManager();
+	 rb =reasonManager.addReason(inputJsonObj);
+     System.out.println("Message :"+rb);
+	 return rb;
+	}
+//****************  Update  Reason
+@Path("/updatereason")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response updateReason(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 ReasonManager reasonManager  = new ReasonManager();
+	 rb =reasonManager.editReason(inputJsonObj);
+System.out.println("Message :"+rb);
+	 return rb;
+	}
+//****************  Remove  Reason
+@Path("/removereason")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response removeReason(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 ReasonManager reasonManager  = new ReasonManager();
+	 rb =reasonManager.removeReason(inputJsonObj);
+     System.out.println("Message :"+rb);
+	 return rb;
+	}
+
+//****************  Reorder  Reasons
+@Path("/reorderreasons")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response reorderReasons(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 ReasonManager reasonManager  = new ReasonManager();
+	 rb =reasonManager.reorderReasons(inputJsonObj);
+     System.out.println("Message :"+rb);
+	 return rb;
+	}
+
+
 }

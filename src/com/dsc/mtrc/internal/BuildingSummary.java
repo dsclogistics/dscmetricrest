@@ -300,7 +300,7 @@ public class BuildingSummary {
 								        t =" and  (( mmpg.mpg_start_eff_dtm  <= '" +sdate +"') and ( mmpg.mpg_end_eff_dtm >= '"+edate +"')) ";
 						            }
 							       SQL1="  SELECT d.mtrc_name, b.mtrc_period_id,b.mtrc_id,c.dsc_mtrc_lc_bldg_id,a.tm_period_id, "+
-						    		 " c.dsc_lc_id,c.dsc_mtrc_lc_bldg_name,d.[mtrc_name],a.mtrc_period_val_value, "+
+						    		 " c.dsc_lc_id,c.dsc_mtrc_lc_bldg_name,d.[mtrc_name],a.mtrc_period_val_value,a.mtrc_period_val_id, "+
 								     " d.mtrc_min_val,d.mtrc_max_val,f.data_type_token,  DATENAME(MONTH, e.tm_per_start_dtm) AS MonthName ," +
 						    		 " mmprd.mtrc_prod_display_order,mmprd.mtrc_prod_display_text " +
 								     " , mmpg.mpg_less_val, mmpg.mpg_less_eq_val,mmpg.mpg_greater_val, mmpg.mpg_greater_eq_val,mmpg.mpg_equal_val "+								     
