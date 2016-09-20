@@ -320,6 +320,8 @@ public class MetricAutoLoader {
 		
 		// get metric
 		tput =dscwmsvolume(dwurl,calMonth, thisyear,metricId,dwEndpoint);
+		 PreparedStatement  updatePrepStmt = null;
+		 PreparedStatement  insertPrepStmt = null;
 		try 
 		{
 		   	
@@ -329,8 +331,8 @@ public class MetricAutoLoader {
 		   insertSQL = "insert into mtrc_metric_period_value (mtrc_period_id,dsc_mtrc_lc_bldg_id,tm_period_id,mtrc_period_val_added_dtm,mtrc_period_val_added_by_usr_id,mtrc_period_val_upd_dtm,mtrc_period_val_upd_by_user_id,mtrc_period_val_is_na_yn,mtrc_period_val_value)"+
 		               "values(?,?,?,?,?,?,?,?,?)";
 		   stmt = conn.createStatement(); 
-		   PreparedStatement  updatePrepStmt = conn.prepareStatement(updateSQL);		   
-	       PreparedStatement  insertPrepStmt = conn.prepareStatement(insertSQL);
+		   updatePrepStmt = conn.prepareStatement(updateSQL);		   
+	       insertPrepStmt = conn.prepareStatement(insertSQL);
 	       int updateCounter = 0;
 	       int insertCounter = 0;
 		   for(int i=0; i<tput.length(); i++)         
@@ -393,25 +395,65 @@ public class MetricAutoLoader {
 		} catch (Exception e) 
 		{
 				
-			try {
+			try 
+			{
 				conn.rollback();
-				conn.close();
-			} catch (SQLException e1) {
-				// TODO Auto-generated catch block
-				 if (conn != null) { try {
- 					conn.close();
- 				} catch (SQLException e1c) {
- 					// TODO Auto-generated catch block
- 					e1c.printStackTrace();
- 				}}
+		
+			} 
+			catch(SQLException e1)
+			{
 				e1.printStackTrace();
-				 msg="Metric DB Connection Failed.";
-	              sb.append("{\"result\":\"FAILED\",\"resultCode\":200,\"message\":\""+msg+"\"}");
-	 	          rb=Response.ok(sb.toString()).build();
-	 	          return rb;
 			}
-			// TODO Auto-generated catch block
-				e.printStackTrace();
+			if (stmt != null)
+			{ 
+				try 
+				{
+					stmt.close();
+				}
+				catch (SQLException e1c) 
+				{
+					// TODO Auto-generated catch block
+					e1c.printStackTrace();
+				}
+			}
+			if (insertPrepStmt != null)
+			{ 
+				try 
+				{
+					insertPrepStmt.close();
+				}
+				catch (SQLException e1c) 
+				{
+					// TODO Auto-generated catch block
+					e1c.printStackTrace();
+				}
+			}
+			if (updatePrepStmt != null)
+			{ 
+				try 
+				{
+					updatePrepStmt.close();
+				}
+				catch (SQLException e1c) 
+				{
+					// TODO Auto-generated catch block
+					e1c.printStackTrace();
+				}
+			}
+			if (conn != null)
+			{ 
+				try 
+				{
+					conn.close();
+				}
+				catch (SQLException e1c) 
+				{
+					// TODO Auto-generated catch block
+					e1c.printStackTrace();
+				}
+			}
+			
+			//
                msg="Metric DB Connection Failed.";
               sb.append("{\"result\":\"FAILED\",\"resultCode\":200,\"message\":\""+msg+"\"}");
  	          rb=Response.ok(sb.toString()).build();
