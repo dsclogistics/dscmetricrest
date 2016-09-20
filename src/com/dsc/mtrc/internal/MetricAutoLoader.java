@@ -634,7 +634,7 @@ public class MetricAutoLoader {
 		    		    		     query= " {\"productname\":\"Red Zone\", \"tptname\":\"Month\",\"mtrcid\":"+metricid +",\"calmonth\":\""+
 		    		    		     previousMonth +"\",\"calyear\":"+thisyear +"}";
 		    		    		     // result will be:  {"building":"BP2"}
-		    		    		     //make connection
+		    		    		     
 		    		    		     
 		    		      System.out.println("query being sent:"+query);
 		    		   	     System.out.println("URL is:"+url.toString());
