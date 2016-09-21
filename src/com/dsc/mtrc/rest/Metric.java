@@ -176,10 +176,11 @@ public Response getAllMMperiods ()throws Exception
 	java.util.Date date= new java.util.Date();
 	java.util.Date sdate=new Timestamp(date.getTime());  
 	 MetricPeriodSave mtrcperiodsave = new MetricPeriodSave();
-	 String [] msg=mtrcperiodsave.MetricPeriodSave(inputJsonObj);
-   String r=msg[1];
-   rb=Response.ok(r.toString()).build();
-	     return rb;
+	 //String [] msg=mtrcperiodsave.MetricPeriodSave(inputJsonObj);
+  // String r=msg[1];
+   //rb=Response.ok(r.toString()).build();
+   //return rb;
+	     return mtrcperiodsave.saveMetricPeriod(inputJsonObj);
 	  
 	}
 

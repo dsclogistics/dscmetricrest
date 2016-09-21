@@ -493,10 +493,15 @@ public class MetricPeriodClose {
           		}//end of while
           		pstmt.executeBatch();
           		stmt.executeUpdate(SQL);
+          		System.out.println("Commiting transaction...");
           		conn.commit();
+          		System.out.println("Done Committing...");
           		rs.close();         
           		pstmt.close();         		 		
-             	stmt.close();         		 
+             	stmt.close();
+             	System.out.println("Closing Connection...");
+             	conn.close();
+             	System.out.println("Connection is closed");
           	}//end of try
       		catch(Exception e)
       		{
@@ -519,38 +524,7 @@ public class MetricPeriodClose {
     				}} 
     	            return rb;
       		}
-          	
-      		
-      		
-      		
-      		/*SQL ="update [dbo].[RZ_MTRC_PERIOD_STATUS] set [rz_mps_status]='Closed',"+
-      		     " [rz_mps_closed_on_dtm]=getdate() " + ",rz_mps_closed_by_usr_id='"+updusr +"' " +
-      		     " where [mtrc_period_id] ="+mtrpid +" and  [tm_period_id]= "+
-      		     " (select distinct tm_period_id from MTRC_tm_periods "+
-	                 " where (Datename(month,tm_per_start_dtm) ='"+calmonth +"'  and Year(tm_per_start_dtm) ="+calyear  +
-	                 " ) and (Datename(month,tm_per_end_dtm) ='"+calmonth +"' and Year(tm_per_end_dtm) ="+calyear+" ))";
-      	//	System.out.println("sql to update is:"+SQL);
-      		Statement stmt;
-			try {
-				  stmt = conn.createStatement();
-				  //conn.setAutoCommit(false);
-				  
-			      stmt.executeUpdate(SQL);
-			} catch (SQLException e) {
-	      		//e.printStackTrace();
-	            msg="Metric DB Connection Failed.";
-	            sb.append("{\"result\":\"FAILED\",\"resultCode\":200,\"message\":\""+msg+"\"}");
-		            rb=Response.ok(sb.toString()).build();
-		            if (conn != null) { try {
-						conn.close();
-					} catch (SQLException e1d) {
-						// TODO Auto-generated catch block
-						e1d.printStackTrace();
-					}} 
-		            return rb;
-			}*/
- 	
-      	
+  	
       	}
       	else
       	{
@@ -565,9 +539,7 @@ public class MetricPeriodClose {
 			}} 
 	            return rb;
       	}
-      		
-   
-     	
+
      	 try
      	 {
      		 if (conn != null) conn.close();

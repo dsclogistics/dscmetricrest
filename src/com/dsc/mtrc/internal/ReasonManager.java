@@ -325,20 +325,43 @@ public class ReasonManager {
 	      	   conn.close();
 		}//end of try
 		catch(Exception e){
-			try {
-				conn.rollback();
-				if (updatePrepStmt != null) {
-			        try {
+			try 
+			{				
+				if (updatePrepStmt != null)
+				{
+			        try 
+			        {
 			        	updatePrepStmt.close();
-			        } catch (SQLException e1) {  }
+			        }
+			        catch (SQLException e1) {  }
 			    }
-				if (insertPrepStmt != null) {
-				        try {
+				if (insertPrepStmt != null) 
+				{
+				        try
+				        {
 				        	insertPrepStmt.close();
-				        } catch (SQLException e1) {  }
-				    }				
+				        } 
+				        catch (SQLException e1) {  }
+				    }
+				if (conn != null)
+				{
+			        try 
+			        {
+			        	conn.rollback();
+			        	conn.close();
+			        }
+			        catch (SQLException e1) { conn.close(); }
+			    }
 				conn.close();
-			} catch (SQLException e1) {
+			} catch (SQLException e1)
+			{
+				try
+				{
+					conn.close();
+				} catch (SQLException e2) {
+					
+					e2.printStackTrace();
+				}
 				e1.printStackTrace();
 			}
 			e.printStackTrace();			
@@ -414,15 +437,30 @@ public class ReasonManager {
 		 }//end of try
 		catch(Exception e){
 			try {
-				conn.rollback();
-				if (deletePrepStmt != null) {
-			        try {
+				
+				if (deletePrepStmt != null)
+				{
+			        try 
+			        {
 			        	deletePrepStmt.close();
-			        } catch (SQLException e1) {  }
-			    }				
-				conn.close();
+			        } 
+			        catch (SQLException e1) {  }
+			    }	
+				if(conn!=null)
+				{
+					conn.rollback();
+					conn.close();
+				}
+				
 			} catch (SQLException e1) {
-				e1.printStackTrace();
+				if(conn!=null)
+				{					
+					try {
+						conn.close();
+					} catch (SQLException e2) {
+						e2.printStackTrace();
+					}
+				}
 			}
 			e.printStackTrace();
 			obj1.put("result", "FAILED");
@@ -668,8 +706,7 @@ public class ReasonManager {
 		}//end of try
 		catch(Exception e){
 			try {
-				
-				conn.rollback();				
+												
 				if (insertPrepStmt != null) {
 				        try {
 				        	insertPrepStmt.close();
@@ -680,9 +717,15 @@ public class ReasonManager {
 			        	validatePrepStmt.close();
 			        } catch (SQLException e1) {  }
 			    }
+				conn.rollback();
 				conn.close();
 			} catch (SQLException e1) {
 				e1.printStackTrace();
+				try {
+					conn.close();
+				} catch (SQLException e2) {
+					e2.printStackTrace();
+				}
 			}
 			e.printStackTrace();
 			
@@ -986,7 +1029,7 @@ public class ReasonManager {
 		catch(Exception e){
 			try {
 				
-				conn.rollback();		
+						
 				if (checkFlagPrepStmt != null) {
 			        try {
 			        	checkFlagPrepStmt.close();
@@ -1002,10 +1045,17 @@ public class ReasonManager {
 			        	validatePrepStmt.close();
 			        } catch (SQLException e1) {  }
 			    }
+				conn.rollback();
 				conn.close();
 			} catch (SQLException e1) 
 			{
-				e1.printStackTrace();
+				if(conn!=null){
+					try {
+						conn.close();
+					} catch (SQLException e2) {
+						e2.printStackTrace();
+					}
+				}
 			}
 			e.printStackTrace();
 			
@@ -1093,7 +1143,8 @@ public class ReasonManager {
 				retJson.put("message", "Failed to delete record: Metric Period Reason ID is Required");
 				rb = Response.ok(retJson.toString()).build();
 				return rb;
-			} else 
+			}
+			else 
 			{
 				mprID = rawInputData.getString("mpr_id").toString().trim();
 			}
@@ -1137,9 +1188,18 @@ public class ReasonManager {
 				        try {
 				        	validatePrepStmt.close();
 				        } catch (SQLException e1) {  }
-				    }	
+				    }
+				conn.rollback();
 				conn.close();
 			} catch (SQLException e1) {
+				if(conn != null)
+				{
+					try {
+						conn.close();
+					} catch (SQLException e2) {
+						e2.printStackTrace();
+					}
+				}
 				e1.printStackTrace();
 			}
 			e.printStackTrace();				
@@ -1360,9 +1420,7 @@ public class ReasonManager {
 						
 		}//end of try
 		catch(Exception e){
-			try {
-				
-				conn.rollback();							
+			try {										
 				if (updatePrepStmt != null) {
 				        try {
 				        	updatePrepStmt.close();
@@ -1378,11 +1436,21 @@ public class ReasonManager {
 			        	validatePrepStmt.close();
 			        } catch (SQLException e1) {  }
 			    }
+				conn.rollback();	
 				conn.close();
-			} catch (SQLException e1) {
-
-				e1.printStackTrace();
+			} 
+			catch (SQLException e1) 
+			{
+				if(conn!=null)
+				{
+					try {
+						conn.close();
+					} catch (SQLException e2) {
+						e2.printStackTrace();
+					}
+				}
 			}
+
 			e.printStackTrace();
 					
 			retJson.put("result", "FAILED");

@@ -51,11 +51,6 @@ public class MetricAuthorization  {
 		 try {
 			 
 			 // first get header level data
- 
-			 
-	 		 
-			 
- 
     		  String SQL =" SELECT   [mma_id] ,mma.[mtrc_prod_id] ,[mma_dsc_ad_username] " +
     			    	   ",[mma_eff_start_date] ,[mma_eff_end_date],mp.prod_name "+
     			    	   " ,mmpr.mtrc_period_name, mmp.mtrc_period_id, mmpr.mtrc_id  "+
