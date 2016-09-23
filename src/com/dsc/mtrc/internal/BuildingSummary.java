@@ -54,11 +54,12 @@ public class BuildingSummary {
         String prodname=inputJsonObj.get("productname").toString();
         if (inputJsonObj.has("calmonth")) calmonth=inputJsonObj.get("calmonth").toString();
         String calyear=inputJsonObj.get("calyear").toString();
-//        String mtrcid=inputJsonObj.get("mtrcid").toString();
+        PreparedStatement checkReasonsPrepStmt = null;
         String master="N";
         String detail="N";
         String pctyn="N";
         String intyn="N";
+        ResultSet rs2 = null;
         String mm="";
         String fullyear="N";
         String dsplybuildingname="";
@@ -345,14 +346,24 @@ public class BuildingSummary {
 						    			 
 	 
 				//	           System.out.println(" BuildingMetric Sql:"+SQL1);	
+							    String reasonSQL ="select count(*) r_count from MTRC_MPV_REASONS where  mtrc_period_val_id = ? ";		 
 					 	        stmt = conn.createStatement();
-					 	    	 
+					 	       checkReasonsPrepStmt = conn.prepareStatement(reasonSQL);
 						         rs = stmt.executeQuery(SQL1);
 						         rsmd = rs.getMetaData();
 						         System.out.println("sql is = "+SQL1);
 					              numColumns = rsmd.getColumnCount(); 
 					             	Double cvalue;
 										while (rs.next()) {
+											
+											int reasonCount = 0;
+											checkReasonsPrepStmt.setString(1, rs.getString("mtrc_period_val_id"));
+											rs2 = checkReasonsPrepStmt.executeQuery();
+											while(rs2.next())
+											{
+												reasonCount = rs2.getInt("r_count");
+											}											
+											
 											pctyn="N";
 											intyn="N";
 											if (rs.getString("data_type_token").equals("int")) intyn="Y";
@@ -465,6 +476,7 @@ public class BuildingSummary {
 									          jo.put(column_name, colvalue);   
 										 } // for numcolumns
 										jo.put("mpg_mtrc_passyn", mtrcpassyn);
+										jo.put("reason_count",reasonCount );
 										 json2.put(jo);
 										} // while loop
 
