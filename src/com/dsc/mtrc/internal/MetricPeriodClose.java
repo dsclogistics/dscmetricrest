@@ -18,6 +18,7 @@ import org.codehaus.jettison.json.JSONArray;
  
 import com.dsc.mtrc.dao.*;
 import com.dsc.mtrc.util.DateHelper;
+import com.dsc.mtrc.util.MetricPeriodHelper;
 
 
 public class MetricPeriodClose {
@@ -36,13 +37,15 @@ public class MetricPeriodClose {
 	     String mpgGreaterEqVal = null;
 	     double mpValue = 0.0;// this value represents a single value from MTRC_METRIC_PERIOD_VALUE table
 	     String goalMet = "N"; // valid options are Y/N/X
-	     
-	     
+	     MetricPeriodHelper mph = new MetricPeriodHelper();
+	     List<Integer> bldgs = new ArrayList<Integer>();
 	     String mpgAllowBldgOverride = null; //this variable will be used later to implement building override goals
 	     String startDate;
 	     String endDate; 
 		 Response rb = null;
 		 int loccount=0;
+		 		 
+		 
 		 StringBuffer sb = new StringBuffer();
 		    String msg="";
   		 Connection conn = null;
@@ -431,9 +434,18 @@ public class MetricPeriodClose {
       	      		     " (select distinct tm_period_id from MTRC_tm_periods "+
       		                 " where (Datename(month,tm_per_start_dtm) ='"+calmonth +"'  and Year(tm_per_start_dtm) ="+calyear  +
       		                 " ) and (Datename(month,tm_per_end_dtm) ='"+calmonth +"' and Year(tm_per_end_dtm) ="+calyear+" ))";
+      			
+      			String actionPlanSQL = "insert into RZ_BLDG_ACTION_PLAN"
+      					              +"(dsc_mtrc_lc_bldg_id,tm_period_id,rz_bap_created_on_dtm)"
+      					              +"values (?,?,?)";
+      			PreparedStatement actionPlanPstmt = conn.prepareStatement(actionPlanSQL,PreparedStatement.RETURN_GENERATED_KEYS);
+      			PreparedStatement bapMetricPrepStmt = null;
+      			PreparedStatement valueIdPrepStmt = null;
+      			PreparedStatement getBuildingsPrepStmt = null;
           		Statement stmt = conn.createStatement();
           		PreparedStatement pstmt = conn.prepareStatement(insertSQL);
           		ResultSet rs = stmt.executeQuery(SQL1);
+          		
           		ResultSetMetaData rsmd = rs.getMetaData();
           		while (rs.next()) 
           		{   
@@ -493,10 +505,106 @@ public class MetricPeriodClose {
           		}//end of while
           		pstmt.executeBatch();
           		stmt.executeUpdate(SQL);
+/****************************Now we need to check if action plan is required *******************************************/          		
+          		if(mph.getClosedMetricCount(conn, tmPeriodId)>=3)
+          		{
+          		
+          			System.out.println("Closed more than 2 metrics");
+          			String getBuildingsSQL = " select v.dsc_mtrc_lc_bldg_id," 
+                                            +" count(*) as  cnt,"
+                                            + "coalesce(a.rz_bap_id,-1) as bap_id"
+                                            +" from mtrc_metric_period_value v"  
+                                            +" join rz_mtrc_period_status s"
+       	                                    +" on v.tm_period_id = s.tm_period_id"
+                                            +" and v.mtrc_period_id = s.mtrc_period_id"
+       	                                    +" join  RZ_MTRC_PERIOD_VAL_GOAL g"
+       	                                    +" on v.mtrc_period_val_id = g.mtrc_period_val_id"
+       	                                    +" left outer join RZ_BLDG_ACTION_PLAN a "
+       	                                    +" on v.dsc_mtrc_lc_bldg_id = a.dsc_mtrc_lc_bldg_id"
+                                            +" where s.tm_period_id =? "
+                                            +" and s.rz_mps_status = 'Closed'"
+                                            +" and g.rz_mpvg_goal_met_yn='N'"                                         
+                                            +" group by "
+                                            +" v.dsc_mtrc_lc_bldg_id,"
+                                            +" a.rz_bap_id"
+                                            +" having count(*)>=3"
+                                            +" order by v.dsc_mtrc_lc_bldg_id"; 
+          			
+          			getBuildingsPrepStmt = conn.prepareStatement(getBuildingsSQL);
+          			
+          			String getValIdSQL = "select v.mtrc_period_val_id "
+          					            + " from MTRC_METRIC_PERIOD_VALUE v"
+          					            + " join RZ_MTRC_PERIOD_VAL_GOAL g "
+          					            + " on v.mtrc_period_val_id = g.mtrc_period_val_id"
+          					            + " where dsc_mtrc_lc_bldg_id = ?"
+          					            + " and tm_period_id = ?"
+          					            + " and g.rz_mpvg_goal_met_yn='N' "
+          					            + " and not exists"
+          					            + " (select 1 from RZ_BAP_METRICS where v.mtrc_period_val_id = RZ_BAP_METRICS.mtrc_period_val_id )";
+          			
+          			String bapMetricSQL = "insert into rz_bap_metrics "
+				                 +"(rz_bap_id,mtrc_period_val_id,rz_bapm_status,rz_bapm_created_on_dtm)"
+				                 + "values(?,?,?,?) ";     
+          			
+          			valueIdPrepStmt = conn.prepareStatement(getValIdSQL);
+          			bapMetricPrepStmt = conn.prepareStatement(bapMetricSQL);
+          			
+          			getBuildingsPrepStmt.setInt(1,tmPeriodId);
+          			rs = getBuildingsPrepStmt.executeQuery();
+          			while(rs.next())
+          			{
+          				
+          				int bldgId = rs.getInt("dsc_mtrc_lc_bldg_id");
+          				System.out.println("Action Plan needed for building id "+bldgId);
+          				int bldgCount = rs.getInt("cnt");
+          				int bapId = rs.getInt("bap_id");
+          				ResultSet tempRes = null;
+          				if(bapId ==-1)//-1 means this is a new rz_bldg_action_plan record. That means we need to get rz_bap_id value first
+          				{
+          					System.out.println("Adding new AP record for building id "+bldgId);
+          					actionPlanPstmt.setInt(1, bldgId);
+          					actionPlanPstmt.setInt(2, tmPeriodId);
+          					actionPlanPstmt.setTimestamp(3, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now()));
+          					actionPlanPstmt.executeUpdate();
+          					tempRes = actionPlanPstmt.getGeneratedKeys();          					
+          					tempRes.next();
+          					bapId = tempRes.getInt(1);
+          				}
+          				
+          				valueIdPrepStmt.setInt(1,bldgId );
+          				valueIdPrepStmt.setInt(2, tmPeriodId);         				
+          				tempRes = valueIdPrepStmt.executeQuery();
+          				while(tempRes.next())
+          				{
+          					System.out.println("Adding rz_bap_record for mtrc_period_val_id =  "+tempRes.getInt("mtrc_period_val_id"));
+          					bapMetricPrepStmt.setInt(1, bapId);
+          					bapMetricPrepStmt.setInt(2, tempRes.getInt("mtrc_period_val_id"));
+          					bapMetricPrepStmt.setString(3, "Not Started");
+          					bapMetricPrepStmt.setTimestamp(4,java.sql.Timestamp.valueOf(java.time.LocalDateTime.now()));
+          					bapMetricPrepStmt.executeUpdate();
+          				}//end of tempRes while
+          				
+          				
+          			}//end of while
+          			//bldgs = mph.getBuildingsForActionPlan(conn, tmPeriodId);       			          			          			
+          		}//if(mph.getClosedMetricCount(conn, tmPeriodId)>=3)         		
+    
+          		rs.close();  
+          		if(actionPlanPstmt!=null)
+          		{
+          			actionPlanPstmt.close();
+          		}
+          		if(bapMetricPrepStmt!=null)
+          		{
+          			bapMetricPrepStmt.close();
+          		}
+          		if(valueIdPrepStmt!=null)
+          		{
+          			valueIdPrepStmt.close();
+          		}
           		System.out.println("Commiting transaction...");
           		conn.commit();
-          		System.out.println("Done Committing...");
-          		rs.close();         
+          		System.out.println("Done Committing...");         		
           		pstmt.close();         		 		
              	stmt.close();
              	System.out.println("Closing Connection...");
