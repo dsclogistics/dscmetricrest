@@ -413,6 +413,56 @@ System.out.println("Message :"+rb);
      System.out.println("Message :"+rb);
 	 return rb;
 	}
+//****************  Get Action Plan by rz_bapm_id
+@Path("/getactplanbyid")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getAPbyId(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 ActionPlanManager apManager  = new ActionPlanManager();
+	 rb = apManager.getAPforBampId(inputJsonObj);
+   System.out.println("Message :"+rb);
+	 return rb;
+	}
+
+//****************  Submit action plan 
+@Path("/submitactionplan")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response submitActionPlanDetail(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 ActionPlanManager apManager  = new ActionPlanManager();
+	 rb = apManager.submitActionPlan(inputJsonObj);
+ System.out.println("Message :"+rb);
+	 return rb;
+	}
+//****************  Save action plan 
+@Path("/saveactionplan")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response saveActionPlanDetail(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 ActionPlanManager apManager  = new ActionPlanManager();
+	 rb = apManager.saveActionPlan(inputJsonObj);
+System.out.println("Message :"+rb);
+	 return rb;
+	}
+
+//****************  Submit action plan review
+@Path("/submitapreview")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response submitActionPlanreview(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 ActionPlanManager apManager  = new ActionPlanManager();
+	 rb = apManager.submitAPReview(inputJsonObj);
+System.out.println("Message :"+rb);
+	 return rb;
+	}
 
 
 }

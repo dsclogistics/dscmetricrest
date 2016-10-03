@@ -405,6 +405,8 @@ public class ReasonManager {
 		JSONArray rawInputData = inputJsonObj.getJSONArray("reasonstodelete");
 		Connection conn = null;
 		PreparedStatement  deletePrepStmt = null;
+		PreparedStatement  validatePrepStmt = null;
+		ResultSet rs = null;
 
 		try {
 			conn = ConnectionManager.mtrcConn().getConnection();
@@ -423,15 +425,62 @@ public class ReasonManager {
 		 {			
 			conn.setAutoCommit(false);
 			deletePrepStmt = conn.prepareStatement(deleteSQL);
+			String validateSQL = "select count(*) as cnt from MTRC_MPV_REASONS where mpvr_id = ? ";
+			validatePrepStmt = conn.prepareStatement(validateSQL);
+			int count = 0;
+			
 			for(int i=0;i<rawInputData.length();i++)
 			{				
+			
 			   int mpvrId = rawInputData.getJSONObject(i).getInt("mpvr_id");
+			   validatePrepStmt.setInt(1,mpvrId );
+			   rs = validatePrepStmt.executeQuery();
+				while(rs.next())
+				{
+					count = rs.getInt("cnt");
+				}
+				if(count ==0)
+				{
+					if (deletePrepStmt != null)
+					{
+				        try 
+				        {
+				        	deletePrepStmt.close();
+				        } 
+				        catch (SQLException e1) {  }
+				    }	
+					if (validatePrepStmt != null)
+					{
+				        try 
+				        {
+				        	validatePrepStmt.close();
+				        } 
+				        catch (SQLException e1) {  }
+				    }	
+					if(conn!=null)
+					{
+						try{
+							conn.rollback();
+						}
+						catch (SQLException e1) {  }
+						try{
+							conn.close();
+						}
+						catch (SQLException e1) {  }
+					}
+					
+					obj1.put("result", "FAILED");
+					obj1.put("resultCode", "200");
+					obj1.put("message", "Error: Cannot find record for mpvr_id = "+mpvrId);
+					rb = Response.ok(obj1.toString()).build();			
+					return rb;
+				}
 			   deletePrepStmt.setInt(1, mpvrId);
 			   deletePrepStmt.addBatch();
 			}//end of for loop
 			
 			   deletePrepStmt.executeBatch();
-			   deletePrepStmt.close();
+			   deletePrepStmt.close(); 
 			   conn.commit();		   
 	      	   conn.close();
 		 }//end of try
@@ -451,6 +500,14 @@ public class ReasonManager {
 					conn.rollback();
 					conn.close();
 				}
+				if (validatePrepStmt != null)
+				{
+			        try 
+			        {
+			        	validatePrepStmt.close();
+			        } 
+			        catch (SQLException e1) {  }
+			    }	
 				
 			} catch (SQLException e1) {
 				if(conn!=null)
@@ -471,6 +528,14 @@ public class ReasonManager {
 		}
 		finally 
 		{
+			if (validatePrepStmt != null)
+			{
+		        try 
+		        {
+		        	validatePrepStmt.close();
+		        } 
+		        catch (SQLException e) {  }
+		    }	
 		    if (deletePrepStmt != null) {
 		        try {
 		        	deletePrepStmt.close();
