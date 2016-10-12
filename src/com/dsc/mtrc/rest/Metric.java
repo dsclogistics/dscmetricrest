@@ -464,5 +464,18 @@ System.out.println("Message :"+rb);
 	 return rb;
 	}
 
+//****************  Get Prior Action Plans
+@Path("/getpriorap")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getPriorActPlan(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 ActionPlanManager apManager  = new ActionPlanManager();
+	 rb = apManager.getPriorAP(inputJsonObj);
+System.out.println("Message :"+rb);
+	 return rb;
+	}
+
 
 }

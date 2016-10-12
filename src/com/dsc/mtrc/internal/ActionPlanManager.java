@@ -1,13 +1,15 @@
 package com.dsc.mtrc.internal;
 
 import javax.ws.rs.core.Response;
+
+import java.math.RoundingMode;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Timestamp;
-
+import java.text.DecimalFormat;
 
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
@@ -75,10 +77,14 @@ public class ActionPlanManager {
 		{
 			SQL ="select  m.rz_bapm_id,m.rz_bap_id,m.mtrc_period_val_id,m.rz_bapm_status,m.rz_bapm_status_updt_dtm,m.rz_bapm_created_on_dtm,m.rz_bapm_ntfy_dtm,m.rz_bapm_approved_on_dtm, "        
 					+" d.rz_apd_id,d.rz_apd_subm_app_user_id,d.rz_apd_revw_app_user_id,d.rz_apd_ap_ver,d.rz_apd_ap_created_on_dtm,d.rz_apd_ap_last_saved_on_dtm,d.rz_apd_ap_submitted_on_dtm,"		
-					+" d.rz_apd_ap_status,d.rz_apd_ap_stat_upd_on_dtm,d.rz_apd_ap_text,d.rz_apd_ap_review_text"
+					+" d.rz_apd_ap_status,d.rz_apd_ap_stat_upd_on_dtm,d.rz_apd_ap_text,d.rz_apd_ap_review_text,su.app_user_sso_id as submittedby,ru.app_user_sso_id as reviewedby"
                     +" from rz_bap_metrics m"
                     +" left outer join rz_action_plan_dtl d"
                     +" on m.rz_bapm_id = d.rz_bapm_id"
+                    +" left outer join dsc_app_user su"
+				    +" on d.rz_apd_subm_app_user_id = su.app_user_id"
+					+" left outer join dsc_app_user ru"
+					+" on d.rz_apd_revw_app_user_id = ru.app_user_id"
                     +" where m.rz_bapm_id = ?";
 		}
 		
@@ -117,6 +123,8 @@ public class ActionPlanManager {
 					version.put("rz_apd_ap_stat_upd_on_dtm", rs.getTimestamp("rz_apd_ap_stat_upd_on_dtm"));
 					version.put("rz_apd_ap_text", rs.getString("rz_apd_ap_text"));
 					version.put("rz_apd_ap_review_text", rs.getString("rz_apd_ap_review_text"));
+					version.put("submittedby", rs.getString("submittedby"));
+					version.put("reviewedby", rs.getString("reviewedby"));
 					details.put(version);		
 					
 				}
@@ -1086,7 +1094,7 @@ public class ActionPlanManager {
 	public Response submitAPReview(JSONObject inputJsonObj) throws JSONException
 	{
 		Response rb = null;
-		JSONObject retJson = new JSONObject();
+		JSONObject retJson = new JSONObject();		
 		Connection conn = null;
 		PreparedStatement validatePrepStmt = null;
 		PreparedStatement updatePrepStmt = null;				
@@ -1307,5 +1315,317 @@ public class ActionPlanManager {
 		}
 		return rb;
 	}
+
+	public Response getPriorAP(JSONObject inputJsonObj)throws JSONException
+	{
+		Response rb = null;
+		JSONObject retJson = new JSONObject();
+		JSONArray actionPlans = new JSONArray();
+		Connection conn = null;
+		PreparedStatement ps = null;
+		PreparedStatement reasonsPrepStmt = null;
+		//PreparedStatement updatePrepStmt = null;				
+		ResultSet rs = null;
+		int begMonth = 0;
+		int begYear = 0;
+		int endMonth = 0;
+		int endYear = 0;
+		int buildingId = 0;
+		int metricPeriodId = 0;
+		String productName = null;
+		DecimalFormat df2 = new DecimalFormat("0.00");
+        df2.setRoundingMode(RoundingMode.UP);
+		
+		/*******************input json validation********************/
+		try
+		{
+			if(!inputJsonObj.has("productname")||(inputJsonObj.get("productname")==null)||(inputJsonObj.get("productname").equals("")))
+			{
+				retJson.put("result", "FAILED");
+				retJson.put("resultCode", "200");
+				retJson.put("message", "Error: productname value is required ");
+				rb = Response.ok(retJson.toString()).build();			
+				return rb;		
+			}
+			else
+			{
+				productName = inputJsonObj.getString("productname");
+			}
+			
+			if(!inputJsonObj.has("mtrc_period_id")||(inputJsonObj.get("mtrc_period_id")==null)||(inputJsonObj.get("mtrc_period_id").equals("")))
+			{
+				retJson.put("result", "FAILED");
+				retJson.put("resultCode", "200");
+				retJson.put("message", "Error: mtrc_period_id value is required ");
+				rb = Response.ok(retJson.toString()).build();			
+				return rb;		
+			}
+			else
+			{
+				metricPeriodId = inputJsonObj.getInt("mtrc_period_id");
+			}
+			if(!inputJsonObj.has("dsc_mtrc_lc_bldg_id")||(inputJsonObj.get("dsc_mtrc_lc_bldg_id")==null)||(inputJsonObj.get("dsc_mtrc_lc_bldg_id").equals("")))
+			{
+				retJson.put("result", "FAILED");
+				retJson.put("resultCode", "200");
+				retJson.put("message", "Error: dsc_mtrc_lc_bldg_id value is required ");
+				rb = Response.ok(retJson.toString()).build();			
+				return rb;		
+			}
+			else
+			{
+				buildingId = inputJsonObj.getInt("dsc_mtrc_lc_bldg_id");
+			}
+			
+			if(!inputJsonObj.has("begmonth")||(inputJsonObj.get("begmonth")==null)||(inputJsonObj.get("begmonth").equals("")))
+			{
+				retJson.put("result", "FAILED");
+				retJson.put("resultCode", "200");
+				retJson.put("message", "Error: begmonth value is required ");
+				rb = Response.ok(retJson.toString()).build();			
+				return rb;		
+			}
+			else
+			{
+				begMonth = inputJsonObj.getInt("begmonth");
+			}
+			if(!inputJsonObj.has("begyear")||(inputJsonObj.get("begyear")==null)||(inputJsonObj.get("begyear").equals("")))
+			{
+				retJson.put("result", "FAILED");
+				retJson.put("resultCode", "200");
+				retJson.put("message", "Error: begyear value is required ");
+				rb = Response.ok(retJson.toString()).build();			
+				return rb;		
+			}
+			else
+			{
+				begYear = inputJsonObj.getInt("begyear");
+			}
+			if(!inputJsonObj.has("endmonth")||(inputJsonObj.get("endmonth")==null)||(inputJsonObj.get("endmonth").equals("")))
+			{
+				retJson.put("result", "FAILED");
+				retJson.put("resultCode", "200");
+				retJson.put("message", "Error: endmonth value is required ");
+				rb = Response.ok(retJson.toString()).build();			
+				return rb;		
+			}
+			else
+			{
+				endMonth = inputJsonObj.getInt("endmonth");
+			}
+			if(!inputJsonObj.has("endyear")||(inputJsonObj.get("endyear")==null)||(inputJsonObj.get("endyear").equals("")))
+			{
+				retJson.put("result", "FAILED");
+				retJson.put("resultCode", "200");
+				retJson.put("message", "Error: endyear value is required ");
+				rb = Response.ok(retJson.toString()).build();			
+				return rb;		
+			}
+			else
+			{
+				endYear = inputJsonObj.getInt("endyear");
+			}	
+			
+		}//end of try
+		catch(Exception e)
+		{
+			retJson.put("result", "FAILED");
+			retJson.put("resultCode", "200");
+			retJson.put("message", "Error: "+e.getMessage());
+			rb = Response.ok(retJson.toString()).build();			
+			return rb;	
+			
+		}//end of catch
+		
+		/*****************end of json input validation******************/
+		
+		/***************** get db connection ******************/
+		try 
+		{
+			conn = ConnectionManager.mtrcConn().getConnection();
+		} 
+		catch (Exception e)
+		{
+			e.printStackTrace();
+			retJson.put("result", "FAILED");
+			retJson.put("resultCode", "200");
+			retJson.put("message", "DB Connection Failed");
+			rb = Response.ok(retJson.toString()).build();			
+			return rb;
+		}
+		/***************** end of get db connection ******************/
+		
+		
+		String SQL = "select month(MTRC_TM_PERIODS.tm_per_start_dtm) as ap_month,"
+        +" year(MTRC_TM_PERIODS.tm_per_start_dtm) as ap_year,"
+		+" MTRC_METRIC_PERIOD_VALUE.dsc_mtrc_lc_bldg_id as building_id,"
+		+" MTRC_METRIC_PERIOD_VALUE.mtrc_period_val_id as value_id,"
+		+" MTRC_METRIC_PERIOD_VALUE.mtrc_period_id as metric_period_id,"
+		+" MTRC_METRIC_PERIOD_VALUE.tm_period_id as tm_period_id,"
+		+" MTRC_METRIC_PERIOD_VALUE.mtrc_period_val_value as value,"
+	    +" MTRC_DATA_TYPE.data_type_token as data_type,"
+	    + "(coalesce(MTRC_MPBG.mpbg_display_text, MTRC_MPG.mpg_display_text)) as goal_txt, "
+	    +" (coalesce(MTRC_METRIC_PERIOD.mtrc_period_max_dec_places, MTRC_METRIC.mtrc_max_dec_places)) as max_decimal,"
+	    +" RZ_ACTION_PLAN_DTL.rz_bapm_id as bapm_id,"
+	    +" RZ_ACTION_PLAN_DTL.rz_apd_id as apd_id,"
+	    +" RZ_ACTION_PLAN_DTL.rz_apd_ap_status as ap_status,"
+	    +" RZ_ACTION_PLAN_DTL.rz_apd_ap_text as ap_submit_text,"
+	    +" RZ_ACTION_PLAN_DTL.rz_apd_ap_review_text as ap_review_text,"
+	    +" user1.app_user_sso_id submitted_by,"
+	    +" user2.app_user_sso_id approved_by,"
+	    +" RZ_ACTION_PLAN_DTL.rz_apd_ap_submitted_on_dtm as submitted_on,"
+	    +" RZ_BAP_METRICS.rz_bapm_approved_on_dtm as approved_on"	   	
+        +" from MTRC_METRIC_PERIOD_VALUE "
+        +" join MTRC_TM_PERIODS"
+        +" on MTRC_METRIC_PERIOD_VALUE.tm_period_id = MTRC_TM_PERIODS.tm_period_id"
+        +" join RZ_BAP_METRICS "
+        +" on  MTRC_METRIC_PERIOD_VALUE.mtrc_period_val_id = RZ_BAP_METRICS.mtrc_period_val_id"
+        +" join RZ_ACTION_PLAN_DTL on RZ_BAP_METRICS.rz_bapm_id = RZ_ACTION_PLAN_DTL.rz_bapm_id"
+        +" join DSC_APP_USER user1 on RZ_ACTION_PLAN_DTL.rz_apd_subm_app_user_id = user1.app_user_id"
+        +" join DSC_APP_USER user2 on RZ_ACTION_PLAN_DTL.rz_apd_revw_app_user_id = user2.app_user_id"
+        +" join MTRC_METRIC_PERIOD on MTRC_METRIC_PERIOD_VALUE.mtrc_period_id = MTRC_METRIC_PERIOD.mtrc_period_id"
+        +" join MTRC_METRIC on MTRC_METRIC_PERIOD.mtrc_id = MTRC_METRIC.mtrc_id "
+        +" join MTRC_DATA_TYPE on MTRC_METRIC.data_type_id = MTRC_DATA_TYPE.data_type_id"
+        +" join MTRC_MPG on MTRC_METRIC_PERIOD.mtrc_period_id = MTRC_MPG.mtrc_period_id"
+        +" join MTRC_PRODUCT on MTRC_MPG.prod_id = MTRC_PRODUCT.prod_id"
+        +" left outer join MTRC_MPBG on MTRC_MPG.prod_id = MTRC_MPBG.prod_id" 
+        +" and MTRC_MPG.mtrc_period_id = MTRC_MPBG.mtrc_period_id"
+        +" and MTRC_METRIC_PERIOD_VALUE.dsc_mtrc_lc_bldg_id = MTRC_MPBG.dsc_mtrc_lc_bldg_id "
+        +" and MTRC_MPBG.mpbg_start_eff_dtm <= getdate()" 
+        +" and MTRC_MPBG.mpbg_end_eff_dtm >= getdate()"
+        +" where "
+        +" MTRC_METRIC_PERIOD_VALUE.mtrc_period_id = ?"
+        +" and MTRC_METRIC_PERIOD_VALUE.dsc_mtrc_lc_bldg_id = ?"
+        +" and month(MTRC_TM_PERIODS.tm_per_start_dtm)>= ? and year(MTRC_TM_PERIODS.tm_per_start_dtm)>= ?" 
+        +" and month(MTRC_TM_PERIODS.tm_per_end_dtm)<= ? and year(MTRC_TM_PERIODS.tm_per_end_dtm)<= ?"
+        +" and RZ_BAP_METRICS.rz_bapm_status = 'Approved'"
+        +" and RZ_ACTION_PLAN_DTL.rz_apd_ap_status ='Approved'"
+        +" and MTRC_PRODUCT.prod_name = ?"
+        +" and MTRC_MPG.mpg_start_eff_dtm <=getdate()"
+        +" and MTRC_MPG.mpg_end_eff_dtm >=getdate()";
+		
+		String reasonSQL = "select ar.mpvr_id,"
+				           + " ar.mpr_id,"
+				           + " r.mpr_display_text,"
+				           + " ar.mpvr_comment,"
+				           + " r.mpr_desc "
+				           + " from MTRC_MPV_REASONS ar" + " join MTRC_MP_REASON r" + " on ar.mpr_id = r.mpr_id"
+				           + " where ar.mtrc_period_val_id= ?";
+		try
+		{			
+			ps = conn.prepareStatement(SQL);
+			ps.setInt(1,metricPeriodId);
+			ps.setInt(2,buildingId);
+			ps.setInt(3, begMonth);
+			ps.setInt(4, begYear);
+			ps.setInt(5, endMonth);
+			ps.setInt(6, endYear);
+			ps.setString(7,productName);
+			
+			rs = ps.executeQuery();
+			 
+			while(rs.next())
+			{
+				JSONObject temp = new JSONObject();
+				temp.put("month", rs.getInt("ap_month"));
+				temp.put("year", rs.getInt("ap_year"));
+				temp.put("dsc_mtrc_lc_bldg_id",rs.getInt("building_id"));
+				temp.put("mtrc_period_val_id", rs.getInt("value_id"));
+				temp.put("mtrc_period_id", rs.getInt("metric_period_id"));
+				String value = rs.getString("value");
+				temp.put("data_type_token", rs.getString("data_type"));
+				if(rs.getString("data_type").equals("pct"))
+				{
+					double valueNum = Double.parseDouble(value)*100;
+					value = df2.format(valueNum);
+					temp.put("mtrc_period_val_value", value);
+				}
+				else
+				{
+					temp.put("mtrc_period_val_value", value);
+				}
+				temp.put("goal_txt", rs.getString("goal_txt"));
+				temp.put("rz_bapm_id", rs.getInt("bapm_id"));
+				temp.put("rz_apd_id", rs.getInt("apd_id"));
+				temp.put("rz_apd_ap_status", rs.getString("ap_status"));
+				temp.put("rz_apd_ap_text", rs.getString("ap_submit_text"));
+				temp.put("rz_apd_ap_review_text", rs.getString("ap_review_text"));
+				temp.put("rz_apd_ap_review_text", rs.getString("ap_review_text")==null?"":rs.getString("ap_review_text"));
+				temp.put("submitted_by", rs.getString("submitted_by"));
+				temp.put("approved_by", rs.getString("approved_by"));
+				temp.put("rz_apd_ap_submitted_on_dtm", rs.getTimestamp("submitted_on"));
+				temp.put("rz_bapm_approved_on_dtm", rs.getTimestamp("approved_on"));
+				
+				JSONArray reasons = new JSONArray();
+				reasonsPrepStmt = conn.prepareStatement(reasonSQL);
+				reasonsPrepStmt.setInt(1, rs.getInt("value_id"));
+				ResultSet res = reasonsPrepStmt.executeQuery();
+				ResultSetMetaData rsmd = res.getMetaData();
+				int numColomns = rsmd.getColumnCount();				
+				while(res.next())
+				{
+					JSONObject reason = new JSONObject();
+					for(int i = 1;i<numColomns;i++)
+					{
+						String column_name = rsmd.getColumnName(i);
+
+						reason.put(column_name, res.getString(i)==null?"":res.getString(i));
+					}
+					reasons.put(reason);
+				}
+				res.close();
+				temp.put("assignedreasons", reasons);
+				actionPlans.put(temp);							
+			}//end of while
+			retJson.put("result", "Success");
+			retJson.put("actionplans", actionPlans);
+			rs.close();
+		}//end of try
+		catch(Exception e)
+		{
+			e.printStackTrace();
+			//retJson = null;//clearing return json
+			retJson.put("result", "FAILED");
+			retJson.put("resultCode", "200");
+			retJson.put("message", "Error: "+ e.getMessage());
+			//rb = Response.ok(retJson.toString()).build();	
+			
+		}//end of catch
+		finally
+		{
+			
+			if(ps!=null)
+			{
+				try
+				{
+					ps.close();
+				}
+				catch(Exception e1)
+				{}
+			}
+			if(reasonsPrepStmt!=null)
+			{
+				try
+				{
+					reasonsPrepStmt.close();
+				}
+				catch(Exception e1)
+				{}
+			}
+			if(conn!=null)
+			{
+				try
+				{
+					conn.close();
+				}
+				catch(Exception e1)
+				{}
+			}
+		}//end of finally
+		
+		rb = Response.ok(retJson.toString()).build();	
+		return rb;
+	}
+	
 
 }

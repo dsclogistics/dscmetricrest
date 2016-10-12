@@ -305,7 +305,9 @@ public class BuildingSummary {
 								     " d.mtrc_min_val,d.mtrc_max_val,f.data_type_token,  DATENAME(MONTH, e.tm_per_start_dtm) AS MonthName ," +
 						    		 " mmprd.mtrc_prod_display_order,mmprd.mtrc_prod_display_text " +
 								     " , mmpg.mpg_less_val, mmpg.mpg_less_eq_val,mmpg.mpg_greater_val, mmpg.mpg_greater_eq_val,mmpg.mpg_equal_val "+								     
-						    		 " , rmps.rz_mps_status,rbm.rz_bap_id,rbm.rz_bapm_id,rz_bapm_status   from [dbo].[MTRC_METRIC_PERIOD_VALUE] a "+ s+
+						    		 " , rmps.rz_mps_status,rbm.rz_bap_id,rbm.rz_bapm_id,rbm.rz_bapm_status, "+
+						    		 " coalesce(rbm.rz_bapm_status_updt_dtm, rbm.rz_bapm_created_on_dtm) as last_updated "+
+						    		 "   from [dbo].[MTRC_METRIC_PERIOD_VALUE] a "+ s+
 								     
 						    	//	 " join mtrc_tm_periods e on (( e.tm_per_start_dtm >='"+sdate +"') and (e.tm_per_end_dtm <='"+ edate+"' )) "+
 						    		 " and e.tm_period_id = a.tm_period_id  "+

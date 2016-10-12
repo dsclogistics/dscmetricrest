@@ -23,7 +23,8 @@ public class AllMetricPeriods {
 		StringBuffer sb = new StringBuffer();
 		JSONObject obj1 = new JSONObject();
 		JSONArray json = new JSONArray();
-		String SQL = "select mtrc_period_id, mtrc_period_name,mtrc_period_token from MTRC_METRIC_PERIOD";
+		String SQL = "select p.mtrc_period_id, mtrc_period_name,mtrc_period_token, m.mtrc_prod_display_text, mp.prod_name from MTRC_METRIC_PERIOD p ,MTRC_METRIC_PRODUCTS m, MTRC_PRODUCT mp"
+                     +" where  p.mtrc_period_id=m.mtrc_period_id and m.mtrc_prod_top_lvl_parent_yn='Y'and  m.prod_id = mp.prod_id";
 		
 		try(Connection conn = ConnectionManager.mtrcConn().getConnection();
 			Statement stmt = conn.createStatement();

@@ -505,8 +505,11 @@ public class MetricPeriodClose {
           		}//end of while
           		pstmt.executeBatch();
           		stmt.executeUpdate(SQL);
-/****************************Now we need to check if action plan is required *******************************************/          		
-          		if(mph.getClosedMetricCount(conn, tmPeriodId)>=3)
+/****************************Now we need to check if action plan is required *******************************************/          
+          		System.out.println("Checking how many periods are closed");
+          		int closedMtrcQty = mph.getClosedMetricCount(conn, tmPeriodId);
+          		System.out.println("Closed "+closedMtrcQty);
+          		if(closedMtrcQty>=3)
           		{
           		
           			System.out.println("Closed more than 2 metrics");
@@ -521,6 +524,7 @@ public class MetricPeriodClose {
        	                                    +" on v.mtrc_period_val_id = g.mtrc_period_val_id"
        	                                    +" left outer join RZ_BLDG_ACTION_PLAN a "
        	                                    +" on v.dsc_mtrc_lc_bldg_id = a.dsc_mtrc_lc_bldg_id"
+       	                                    +" and v.tm_period_id = a.tm_period_id"
                                             +" where s.tm_period_id =? "
                                             +" and s.rz_mps_status = 'Closed'"
                                             +" and g.rz_mpvg_goal_met_yn='N'"                                         
