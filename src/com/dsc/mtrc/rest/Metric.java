@@ -17,6 +17,7 @@ import javax.naming.directory.*;
 //import org.apache.http.HttpEntity;
 //import org.apache.http.util.EntityUtils;
 
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Hashtable; 
 //ending lDAP stuff
@@ -473,6 +474,66 @@ System.out.println("Message :"+rb);
 	 Response rb = null;
 	 ActionPlanManager apManager  = new ActionPlanManager();
 	 rb = apManager.getPriorAP(inputJsonObj);
+System.out.println("Message :"+rb);
+	 return rb;
+	}
+//****************  Get User Roles
+@Path("/getmockuserroles")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getUserRole(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 if(!inputJsonObj.has("sso_id")||(inputJsonObj.get("sso_id")==null)||(inputJsonObj.get("sso_id").equals("")))
+		{				
+			JSONObject retJson = new JSONObject();
+			retJson.put("result", "FAILED");
+			retJson.put("resultCode", "200");
+			retJson.put("message", "sso_id is required");
+			rb = Response.ok(retJson.toString()).build();			
+			return rb;
+		}
+		else
+		{
+			
+			RZAuthenticationManager authManager  = new RZAuthenticationManager();
+			rb = authManager.mockLoginUser(inputJsonObj.getString("sso_id"));
+		}
+	
+System.out.println("Message :"+rb);
+	 return rb;
+	}
+@Path("/loginrzuser")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response loginRZUser(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 if(!inputJsonObj.has("sso_id")||(inputJsonObj.get("sso_id")==null)||(inputJsonObj.get("sso_id").equals("")))
+		{				
+			JSONObject retJson = new JSONObject();
+			retJson.put("result", "FAILED");
+			retJson.put("resultCode", "200");
+			retJson.put("message", "sso_id is required");
+			rb = Response.ok(retJson.toString()).build();			
+			return rb;
+		}
+	 if(!inputJsonObj.has("password")||(inputJsonObj.get("password")==null)||(inputJsonObj.get("password").equals("")))
+		{				
+			JSONObject retJson = new JSONObject();
+			retJson.put("result", "FAILED");
+			retJson.put("resultCode", "200");
+			retJson.put("message", "password is required");
+			rb = Response.ok(retJson.toString()).build();			
+			return rb;
+		}
+		else
+		{
+			
+			RZAuthenticationManager authManager  = new RZAuthenticationManager();
+			rb = authManager.loginRZUser(inputJsonObj.getString("sso_id"), inputJsonObj.getString("password"));
+		}
+	
 System.out.println("Message :"+rb);
 	 return rb;
 	}

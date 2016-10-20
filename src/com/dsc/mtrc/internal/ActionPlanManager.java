@@ -30,6 +30,7 @@ public class ActionPlanManager {
 		ResultSet rs = null;
 		String SQL = null;
 		int bapmId = 0;
+		String prodName = null;
 		
 		try {
 			conn = ConnectionManager.mtrcConn().getConnection();
@@ -40,6 +41,26 @@ public class ActionPlanManager {
 			retJson.put("message", "DB Connection Failed");
 			rb = Response.ok(retJson.toString()).build();			
 			return rb;
+		}
+		if(!inputJsonObj.has("productname"))
+		{	
+			try
+			{
+			  conn.close();		
+			} 
+			catch (SQLException e) 
+			{			
+			  e.printStackTrace();
+		    }		
+			retJson.put("result", "FAILED");
+			retJson.put("resultCode", "200");
+			retJson.put("message", "productname is required");
+			rb = Response.ok(retJson.toString()).build();			
+			return rb;
+		}
+		else
+		{
+			prodName = inputJsonObj.getString("productname");
 		}
 		if(!inputJsonObj.has("rz_bapm_id"))
 		{	
@@ -77,8 +98,22 @@ public class ActionPlanManager {
 		{
 			SQL ="select  m.rz_bapm_id,m.rz_bap_id,m.mtrc_period_val_id,m.rz_bapm_status,m.rz_bapm_status_updt_dtm,m.rz_bapm_created_on_dtm,m.rz_bapm_ntfy_dtm,m.rz_bapm_approved_on_dtm, "        
 					+" d.rz_apd_id,d.rz_apd_subm_app_user_id,d.rz_apd_revw_app_user_id,d.rz_apd_ap_ver,d.rz_apd_ap_created_on_dtm,d.rz_apd_ap_last_saved_on_dtm,d.rz_apd_ap_submitted_on_dtm,"		
-					+" d.rz_apd_ap_status,d.rz_apd_ap_stat_upd_on_dtm,d.rz_apd_ap_text,d.rz_apd_ap_review_text,su.app_user_sso_id as submittedby,ru.app_user_sso_id as reviewedby"
+					+" d.rz_apd_ap_status,d.rz_apd_ap_stat_upd_on_dtm,d.rz_apd_ap_text,d.rz_apd_ap_review_text,su.app_user_sso_id as submittedby,ru.app_user_sso_id as reviewedby,"
+					+" bldg.dsc_mtrc_lc_bldg_name, mprod.mtrc_prod_display_text, month(tp.tm_per_start_dtm) as month, year(tp.tm_per_start_dtm) as year"
                     +" from rz_bap_metrics m"
+                    +" inner join MTRC_METRIC_PERIOD_VALUE mpv"
+                    +" on m.mtrc_period_val_id = mpv.mtrc_period_val_id"
+                    +" inner join DSC_MTRC_LC_BLDG bldg"
+                    +" on mpv.dsc_mtrc_lc_bldg_id = bldg.dsc_mtrc_lc_bldg_id"
+                    +" inner join MTRC_METRIC_PERIOD mp"
+                    +" on mpv.mtrc_period_id = mp.mtrc_period_id"
+                    +" inner join MTRC_METRIC_PRODUCTS mprod"
+                    +" on mp.mtrc_period_id = mprod.mtrc_period_id"
+                    +" inner join MTRC_PRODUCT prod"
+                    +" on mprod.prod_id = prod.prod_id"
+                    +" and prod.prod_name = ? "
+                    +" inner join MTRC_TM_PERIODS tp"
+                    +" on mpv.tm_period_id = tp.tm_period_id"
                     +" left outer join rz_action_plan_dtl d"
                     +" on m.rz_bapm_id = d.rz_bapm_id"
                     +" left outer join dsc_app_user su"
@@ -91,8 +126,9 @@ public class ActionPlanManager {
 		try
 		{
 			
-			prepStmt = conn.prepareStatement(SQL);
-			prepStmt.setInt(1, bapmId);
+			prepStmt = conn.prepareStatement(SQL);			
+			prepStmt.setString(1, prodName);
+			prepStmt.setInt(2, bapmId);
 			rs = prepStmt.executeQuery();
 			int num = 0;
 			while(rs.next())
@@ -100,6 +136,10 @@ public class ActionPlanManager {
 				if(num == 0)
 				{//json header
 				   retJson.put("result", "Success");
+				   retJson.put("dsc_mtrc_lc_bldg_name", rs.getString("dsc_mtrc_lc_bldg_name"));
+				   retJson.put("mtrc_prod_display_text", rs.getString("mtrc_prod_display_text"));
+				   retJson.put("month", rs.getInt("month"));
+				   retJson.put("year", rs.getInt("year"));
 				   retJson.put("rz_bapm_id", rs.getInt("rz_bapm_id"));
 				   retJson.put("rz_bap_id", rs.getInt("rz_bap_id"));
 				   retJson.put("mtrc_period_val_id", rs.getInt("mtrc_period_val_id"));
@@ -1496,8 +1536,8 @@ public class ActionPlanManager {
         +" where "
         +" MTRC_METRIC_PERIOD_VALUE.mtrc_period_id = ?"
         +" and MTRC_METRIC_PERIOD_VALUE.dsc_mtrc_lc_bldg_id = ?"
-        +" and month(MTRC_TM_PERIODS.tm_per_start_dtm)>= ? and year(MTRC_TM_PERIODS.tm_per_start_dtm)>= ?" 
-        +" and month(MTRC_TM_PERIODS.tm_per_end_dtm)<= ? and year(MTRC_TM_PERIODS.tm_per_end_dtm)<= ?"
+        +" and MTRC_TM_PERIODS.tm_per_start_dtm between ? and ?" 
+       // +" and (month(MTRC_TM_PERIODS.tm_per_end_dtm)<= ? and year(MTRC_TM_PERIODS.tm_per_end_dtm)<= ?)"
         +" and RZ_BAP_METRICS.rz_bapm_status = 'Approved'"
         +" and RZ_ACTION_PLAN_DTL.rz_apd_ap_status ='Approved'"
         +" and MTRC_PRODUCT.prod_name = ?"
@@ -1516,11 +1556,11 @@ public class ActionPlanManager {
 			ps = conn.prepareStatement(SQL);
 			ps.setInt(1,metricPeriodId);
 			ps.setInt(2,buildingId);
-			ps.setInt(3, begMonth);
-			ps.setInt(4, begYear);
-			ps.setInt(5, endMonth);
-			ps.setInt(6, endYear);
-			ps.setString(7,productName);
+			ps.setString(3, begMonth+"/01/"+begYear);
+			//ps.setInt(4, begYear);
+			ps.setString(4, endMonth+"/01/"+endYear);
+			//ps.setInt(6, endYear);
+			ps.setString(5,productName);
 			
 			rs = ps.executeQuery();
 			 
