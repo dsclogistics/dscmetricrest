@@ -477,6 +477,18 @@ System.out.println("Message :"+rb);
 System.out.println("Message :"+rb);
 	 return rb;
 	}
+//****************  Get Prior Action Plans
+@Path("/lookupap")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response lookupActPlan(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 ActionPlanManager apManager  = new ActionPlanManager();
+	 rb = apManager.lookupActionPlan(inputJsonObj);
+System.out.println("Message :"+rb);
+	 return rb;
+	}
 //****************  Get User Roles
 @Path("/getmockuserroles")
 @POST
@@ -532,6 +544,41 @@ System.out.println("Message :"+rb);
 			
 			RZAuthenticationManager authManager  = new RZAuthenticationManager();
 			rb = authManager.loginRZUser(inputJsonObj.getString("sso_id"), inputJsonObj.getString("password"));
+		}
+	
+System.out.println("Message :"+rb);
+	 return rb;
+	}
+
+@Path("/loginrzdmuser")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response loginDMRZUser(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 if(!inputJsonObj.has("sso_id")||(inputJsonObj.get("sso_id")==null)||(inputJsonObj.get("sso_id").equals("")))
+		{				
+			JSONObject retJson = new JSONObject();
+			retJson.put("result", "FAILED");
+			retJson.put("resultCode", "200");
+			retJson.put("message", "sso_id is required");
+			rb = Response.ok(retJson.toString()).build();			
+			return rb;
+		}
+	 if(!inputJsonObj.has("password")||(inputJsonObj.get("password")==null)||(inputJsonObj.get("password").equals("")))
+		{				
+			JSONObject retJson = new JSONObject();
+			retJson.put("result", "FAILED");
+			retJson.put("resultCode", "200");
+			retJson.put("message", "password is required");
+			rb = Response.ok(retJson.toString()).build();			
+			return rb;
+		}
+		else
+		{
+			
+			RZAuthenticationManager authManager  = new RZAuthenticationManager();
+			rb = authManager.loginRZDMUser(inputJsonObj.getString("sso_id"), inputJsonObj.getString("password"));
 		}
 	
 System.out.println("Message :"+rb);

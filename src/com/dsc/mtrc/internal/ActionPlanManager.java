@@ -8,8 +8,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.text.DecimalFormat;
+import com.dsc.mtrc.util.StringsHelper;
+
 
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
@@ -1667,5 +1670,504 @@ public class ActionPlanManager {
 		return rb;
 	}
 	
+	public Response lookupActionPlan(JSONObject inputJsonObj) throws JSONException
+	{
+		Response rb = null;
+		JSONObject retJson = new JSONObject();
+		String prodName = null;
+		String status = null;
+		int bapmId = -1; 
+		int buildindId = -1;
+		int mpId = -1;
+		
+		
+		if(!inputJsonObj.has("productname"))
+		{				
+			retJson.put("result", "FAILED");
+			retJson.put("resultCode", "200");
+			retJson.put("message", "productname is required");
+			rb = Response.ok(retJson.toString()).build();			
+			return rb;
+		}
+		else
+		{
+			prodName = inputJsonObj.getString("productname");
+		}
+		if(inputJsonObj.has("rz_bapm_id") && inputJsonObj.getString("rz_bapm_id")!=null && !inputJsonObj.getString("rz_bapm_id").equals(""))
+		{	
 
+			bapmId = inputJsonObj.getInt("rz_bapm_id");
+			rb = Response.ok(lookupAPbyBapmId(bapmId,prodName).toString()).build();			
+			
+		}
+		else if(inputJsonObj.has("begmonth") && inputJsonObj.getString("begmonth")!=null && !inputJsonObj.getString("begmonth").equals("")
+				&& inputJsonObj.has("begyear") && inputJsonObj.getString("begyear")!=null && !inputJsonObj.getString("begyear").equals("")
+				&& inputJsonObj.has("endmonth") && inputJsonObj.getString("endmonth")!=null && !inputJsonObj.getString("endmonth").equals("")
+				&& inputJsonObj.has("endyear") && inputJsonObj.getString("endyear")!=null && !inputJsonObj.getString("endyear").equals(""))
+		{
+			
+			int begMonth = inputJsonObj.getInt("begmonth");
+			int begYear = inputJsonObj.getInt("begyear");
+			int endMonth = inputJsonObj.getInt("endmonth");
+			int endYear = inputJsonObj.getInt("endyear");
+			//"mtrc_period_id":"1","dsc_mtrc_lc_bldg_id":"40"
+			if(inputJsonObj.has("mtrc_period_id") && inputJsonObj.getString("mtrc_period_id")!=null && !inputJsonObj.getString("mtrc_period_id").equals(""))
+			{
+				mpId = inputJsonObj.getInt("mtrc_period_id");
+			
+			}
+			if(inputJsonObj.has("dsc_mtrc_lc_bldg_id") && inputJsonObj.getString("dsc_mtrc_lc_bldg_id")!=null && !inputJsonObj.getString("dsc_mtrc_lc_bldg_id").equals(""))
+			{
+				buildindId = inputJsonObj.getInt("dsc_mtrc_lc_bldg_id");							
+			}
+			if(inputJsonObj.has("status") && inputJsonObj.getString("status")!=null && !inputJsonObj.getString("status").equals(""))
+			{	
+				status = inputJsonObj.getString("status");
+	
+			}
+			// call lookup by date method
+			rb = Response.ok(lookupAPbyDate(prodName, begMonth,begYear,endMonth,endYear,mpId,buildindId,status).toString()).build();
+		}
+		else
+		{
+			retJson.put("result", "FAILED");
+			retJson.put("resultCode", "200");
+			retJson.put("message", "Action Plan id or Start and End Dates required");
+			rb = Response.ok(retJson.toString()).build();			
+			return rb;
+		}
+		
+		return rb;
+	}
+	
+	public JSONObject lookupAPbyBapmId(int bapmId, String productName) throws JSONException
+	{
+		JSONObject retJson = new JSONObject();
+		JSONArray actionPlans = new JSONArray();
+		JSONArray details = new JSONArray();
+		JSONArray reasons = new JSONArray();
+		Connection conn = null;
+		PreparedStatement apPS = null;// prep stmt for action plans query
+		PreparedStatement rPS = null;// prep stmt for assigned reasons query
+		ResultSet rs = null;
+		DecimalFormat df2 = new DecimalFormat("0.00");
+        df2.setRoundingMode(RoundingMode.UP);
+		
+		
+		String apSQL = "select  m.rz_bapm_id,m.rz_bap_id, m.mtrc_period_val_id,mpv.mtrc_period_val_value,mpv.dsc_mtrc_lc_bldg_id,mpv.mtrc_period_id,"
+				+ " (coalesce(MTRC_MPBG.mpbg_display_text, MTRC_MPG.mpg_display_text)) as goal_txt,MTRC_DATA_TYPE.data_type_token,"
+				+ " m.rz_bapm_status,m.rz_bapm_status_updt_dtm,m.rz_bapm_created_on_dtm,m.rz_bapm_ntfy_dtm,"
+				+ " m.rz_bapm_approved_on_dtm,d.rz_apd_id,d.rz_apd_subm_app_user_id,d.rz_apd_revw_app_user_id,"
+				+ " d.rz_apd_ap_ver,d.rz_apd_ap_created_on_dtm,d.rz_apd_ap_last_saved_on_dtm,d.rz_apd_ap_submitted_on_dtm,"
+				+ " d.rz_apd_ap_status,d.rz_apd_ap_stat_upd_on_dtm,d.rz_apd_ap_text,d.rz_apd_ap_review_text,su.app_user_sso_id as submittedby,"
+				+ " ru.app_user_sso_id as reviewedby,bldg.dsc_mtrc_lc_bldg_name, mprod.mtrc_prod_display_text,"
+				+ " month(tp.tm_per_start_dtm) as month, year(tp.tm_per_start_dtm) as year"
+				+ " from rz_bap_metrics m"
+				+ " inner join MTRC_METRIC_PERIOD_VALUE mpv"
+				+ " on m.mtrc_period_val_id = mpv.mtrc_period_val_id"
+				+ " inner join DSC_MTRC_LC_BLDG bldg"
+				+ " on mpv.dsc_mtrc_lc_bldg_id = bldg.dsc_mtrc_lc_bldg_id"
+				+ " inner join MTRC_METRIC_PERIOD mp"
+				+ " on mpv.mtrc_period_id = mp.mtrc_period_id"
+				+ " inner join MTRC_METRIC"				
+				+ " on mp.mtrc_id = MTRC_METRIC.mtrc_id"
+				+ " inner join MTRC_DATA_TYPE"
+				+ " on MTRC_METRIC.data_type_id =MTRC_DATA_TYPE.data_type_id"
+				+ " inner join MTRC_METRIC_PRODUCTS mprod"
+				+ " on mp.mtrc_period_id = mprod.mtrc_period_id"
+				+ " inner join MTRC_PRODUCT prod"
+				+ " on mprod.prod_id = prod.prod_id"
+				+ " and prod.prod_name = ?"
+				+ " inner join MTRC_TM_PERIODS tp"
+				+ " on mpv.tm_period_id = tp.tm_period_id"
+				+ " left outer join rz_action_plan_dtl d"
+				+ " on m.rz_bapm_id = d.rz_bapm_id"
+				+ " left outer join dsc_app_user su"
+				+ " on d.rz_apd_subm_app_user_id = su.app_user_id"
+				+ " left outer join dsc_app_user ru"
+				+ " on d.rz_apd_revw_app_user_id = ru.app_user_id"
+				+ " left outer join MTRC_MPBG"
+				+ " on mp.mtrc_period_id =  MTRC_MPBG.mtrc_period_id"
+				+ " and mpv.dsc_mtrc_lc_bldg_id = MTRC_MPBG.dsc_mtrc_lc_bldg_id	"
+				+ " and prod.prod_id = MTRC_MPBG.prod_id"
+				+ " and tp.tm_per_start_dtm between  MTRC_MPBG.mpbg_start_eff_dtm and MTRC_MPBG.mpbg_end_eff_dtm"
+				+ " and tp.tm_per_end_dtm between  MTRC_MPBG.mpbg_start_eff_dtm and MTRC_MPBG.mpbg_end_eff_dtm"
+				+ " left outer join MTRC_MPG"
+				+ " on mp.mtrc_period_id = MTRC_MPG.mtrc_period_id"
+				+ " and prod.prod_id = MTRC_MPG.prod_id"
+				+ " and tp.tm_per_start_dtm between MTRC_MPG.mpg_start_eff_dtm and MTRC_MPG.mpg_end_eff_dtm"
+				+ " and tp.tm_per_end_dtm between MTRC_MPG.mpg_start_eff_dtm and MTRC_MPG.mpg_end_eff_dtm"
+				+ " where m.rz_bapm_id = ?";
+		
+		String reasonSQL = "select ar.mpvr_id,"
+		           + " ar.mpr_id,"
+		           + " r.mpr_display_text,"
+		           + " ar.mpvr_comment,"
+		           + " r.mpr_desc "
+		           + " from MTRC_MPV_REASONS ar" + " join MTRC_MP_REASON r" + " on ar.mpr_id = r.mpr_id"
+		           + " where ar.mtrc_period_val_id= ?";
+		try 
+		{
+			conn = ConnectionManager.mtrcConn().getConnection();
+		} 
+		catch (Exception e)
+		{
+			e.printStackTrace();
+			retJson.put("result", "FAILED");
+			retJson.put("resultCode", "200");
+			retJson.put("message", "DB Connection Failed");
+					
+			return retJson;
+		}
+		try
+		{
+			apPS = conn.prepareStatement(apSQL);
+			apPS.setString(1, productName);
+			apPS.setInt(2, bapmId);
+			rs = apPS.executeQuery();
+			int num = 0;
+			int value_id = 0;
+			JSONObject actPlan = new JSONObject();
+			while(rs.next())
+			{
+				
+				if(num==0)
+				{
+					
+					value_id = rs.getInt("mtrc_period_val_id");				
+					actPlan.put("month", rs.getInt("month"));
+					actPlan.put("year", rs.getInt("year"));
+					actPlan.put("dsc_mtrc_lc_bldg_name", rs.getString("dsc_mtrc_lc_bldg_name"));
+					actPlan.put("dsc_mtrc_lc_bldg_id", rs.getInt("dsc_mtrc_lc_bldg_id"));
+					actPlan.put("mtrc_prod_display_text", rs.getString("mtrc_prod_display_text"));
+					actPlan.put("mtrc_period_id", rs.getInt("mtrc_period_id"));
+					String value = rs.getString("mtrc_period_val_value");
+					
+					if(rs.getString("data_type_token").equals("pct"))
+					{
+						double valueNum = Double.parseDouble(value)*100;
+						value = df2.format(valueNum);
+						actPlan.put("mtrc_period_val_value", value);
+					}
+					else
+					{
+						actPlan.put("mtrc_period_val_value", value);
+					}
+					actPlan.put("goal_txt", rs.getString("goal_txt"));
+					actPlan.put("mtrc_period_val_id", value_id);
+					actPlan.put("rz_bapm_status", rs.getString("rz_bapm_status"));
+					actPlan.put("rz_bapm_id",rs.getInt("rz_bapm_id"));				
+					actPlan.put("rz_bapm_created_on_dtm", rs.getTimestamp("rz_bapm_created_on_dtm"));
+					actPlan.put("rz_bapm_status_updt_dtm", rs.getTimestamp("rz_bapm_status_updt_dtm"));
+					actPlan.put("rz_bapm_ntfy_dtm", rs.getTimestamp("rz_bapm_ntfy_dtm"));
+					actPlan.put("rz_bapm_approved_on_dtm", rs.getTimestamp("rz_bapm_approved_on_dtm"));
+					num++;
+				}				
+				if(rs.getString("rz_apd_id")!=null)
+				{
+					JSONObject version = new JSONObject();
+					version.put("rz_apd_id", rs.getInt("rz_apd_id"));
+					version.put("rz_apd_subm_app_user_id", rs.getInt("rz_apd_subm_app_user_id"));
+					version.put("rz_apd_revw_app_user_id", rs.getInt("rz_apd_revw_app_user_id"));
+					version.put("rz_apd_ap_ver", rs.getInt("rz_apd_ap_ver"));
+					version.put("rz_apd_ap_created_on_dtm", rs.getTimestamp("rz_apd_ap_created_on_dtm"));
+					version.put("rz_apd_ap_last_saved_on_dtm", rs.getTimestamp("rz_apd_ap_last_saved_on_dtm"));
+					version.put("rz_apd_ap_submitted_on_dtm", rs.getTimestamp("rz_apd_ap_submitted_on_dtm"));
+					version.put("rz_apd_ap_status", rs.getString("rz_apd_ap_status"));
+					version.put("rz_apd_ap_stat_upd_on_dtm", rs.getTimestamp("rz_apd_ap_stat_upd_on_dtm"));
+					version.put("rz_apd_ap_text", rs.getString("rz_apd_ap_text"));
+					version.put("rz_apd_ap_review_text", rs.getString("rz_apd_ap_review_text"));
+					version.put("submittedby", rs.getString("submittedby"));
+					version.put("reviewedby", rs.getString("reviewedby"));
+					details.put(version);							
+				}			
+				actPlan.put("details",details);
+								
+			}//end of while(rs.next)
+			rPS = conn.prepareStatement(reasonSQL);
+			rPS.setInt(1, value_id);
+			rs = rPS.executeQuery();
+			ResultSetMetaData rsmd = rs.getMetaData();
+			int numColomns = rsmd.getColumnCount();				
+			while(rs.next())
+			{
+				JSONObject reason = new JSONObject();
+				for(int i = 1;i<numColomns;i++)
+				{
+					String column_name = rsmd.getColumnName(i);
+
+					reason.put(column_name, rs.getString(i)==null?"":rs.getString(i));
+				}
+				reasons.put(reason);
+			}
+			actPlan.put("assignedreasons", reasons);						
+			actionPlans.put(actPlan);
+			retJson.put("result", "Success");
+			retJson.put("actionplans", actionPlans);
+			
+			
+		}//end of try
+		catch(Exception e)
+		{		
+			e.printStackTrace();
+			retJson.put("result", "FAILED");
+			retJson.put("resultCode", "200");
+			retJson.put("message", "Error: "+e.getMessage());
+		}//end of catch
+		finally
+		{
+			if(apPS!=null)
+			{
+				try{apPS.close();} catch(Exception e){e.printStackTrace();}
+			}
+			if(rPS!=null)
+			{
+				try{rPS.close();} catch(Exception e){e.printStackTrace();}
+			}
+			if(conn!=null)
+			{
+				try{conn.close();} catch(Exception e){e.printStackTrace();}
+			}
+			
+		}//end of finally
+		return retJson;
+	}
+
+	public JSONObject lookupAPbyDate(String prodName,int begMonth,int begYear,int endMonth,int endYear, int mpId, int buildingId, String status ) throws JSONException
+	{
+		JSONObject retJson = new JSONObject();
+		JSONArray actionPlans = new JSONArray();
+	
+		
+		Connection conn = null;
+		Statement apPS = null;// stmt for action plans headers query
+		PreparedStatement rPS = null;// prep stmt for assigned reasons query
+		PreparedStatement apdPS = null;
+		ResultSet rs = null;
+		DecimalFormat df2 = new DecimalFormat("0.00");
+        df2.setRoundingMode(RoundingMode.UP);
+        
+        String from = begMonth+"/01/"+begYear;
+        String to = endMonth+"/01/"+endYear;
+        String buildingClause = " and 1=1 ";
+        String metricPeriodClause = " and 1=1 ";
+        String statusClause = " and 1=1 ";        
+        if(buildingId !=-1)
+        {
+        	buildingClause = " and mpv.dsc_mtrc_lc_bldg_id = "+buildingId;	 
+        }
+        if(mpId !=-1)
+        {
+        	metricPeriodClause = " and mpv.mtrc_period_id = "+mpId;        	
+        }
+        if(status!=null)
+        {        	
+        	statusClause =" and m.rz_bapm_status in("+StringsHelper.arrayToInClause(StringsHelper.stringToArray(status))+")";
+        	System.out.println("status clause = "+ statusClause);	       	
+        }
+        //System.out.println("bc ="+buildingClause+"  mc = "+metricPeriodClause);	
+        String apSQL = "select  m.rz_bapm_id,m.rz_bap_id, m.mtrc_period_val_id,mpv.mtrc_period_val_value,mpv.dsc_mtrc_lc_bldg_id,mpv.mtrc_period_id,"
+				+ " (coalesce(MTRC_MPBG.mpbg_display_text, MTRC_MPG.mpg_display_text)) as goal_txt,MTRC_DATA_TYPE.data_type_token,"
+				+ " m.rz_bapm_status,m.rz_bapm_status_updt_dtm,m.rz_bapm_created_on_dtm,m.rz_bapm_ntfy_dtm,"
+				+ " m.rz_bapm_approved_on_dtm,"
+				
+				+ " bldg.dsc_mtrc_lc_bldg_name, mprod.mtrc_prod_display_text,"
+				+ " month(tp.tm_per_start_dtm) as month, year(tp.tm_per_start_dtm) as year"
+				+ " from rz_bap_metrics m"
+				+ " inner join MTRC_METRIC_PERIOD_VALUE mpv"
+				+ " on m.mtrc_period_val_id = mpv.mtrc_period_val_id"
+				+ " inner join DSC_MTRC_LC_BLDG bldg"
+				+ " on mpv.dsc_mtrc_lc_bldg_id = bldg.dsc_mtrc_lc_bldg_id"
+				+ " inner join MTRC_METRIC_PERIOD mp"
+				+ " on mpv.mtrc_period_id = mp.mtrc_period_id"
+				+ " inner join MTRC_METRIC"				
+				+ " on mp.mtrc_id = MTRC_METRIC.mtrc_id"
+				+ " inner join MTRC_DATA_TYPE"
+				+ " on MTRC_METRIC.data_type_id =MTRC_DATA_TYPE.data_type_id"
+				+ " inner join MTRC_METRIC_PRODUCTS mprod"
+				+ " on mp.mtrc_period_id = mprod.mtrc_period_id"
+				+ " inner join MTRC_PRODUCT prod"
+				+ " on mprod.prod_id = prod.prod_id"
+				+ " and prod.prod_name = '"+prodName+"'"
+				+ " inner join MTRC_TM_PERIODS tp"
+				+ " on mpv.tm_period_id = tp.tm_period_id"				
+				+ " left outer join MTRC_MPBG"
+				+ " on mp.mtrc_period_id =  MTRC_MPBG.mtrc_period_id"
+				+ " and mpv.dsc_mtrc_lc_bldg_id = MTRC_MPBG.dsc_mtrc_lc_bldg_id	"
+				+ " and prod.prod_id = MTRC_MPBG.prod_id"
+				+ " and tp.tm_per_start_dtm between  MTRC_MPBG.mpbg_start_eff_dtm and MTRC_MPBG.mpbg_end_eff_dtm"
+				+ " and tp.tm_per_end_dtm between  MTRC_MPBG.mpbg_start_eff_dtm and MTRC_MPBG.mpbg_end_eff_dtm"
+				+ " left outer join MTRC_MPG"
+				+ " on mp.mtrc_period_id = MTRC_MPG.mtrc_period_id"
+				+ " and prod.prod_id = MTRC_MPG.prod_id"
+				+ " and tp.tm_per_start_dtm between MTRC_MPG.mpg_start_eff_dtm and MTRC_MPG.mpg_end_eff_dtm"
+				+ " and tp.tm_per_end_dtm between MTRC_MPG.mpg_start_eff_dtm and MTRC_MPG.mpg_end_eff_dtm"
+				+ " where tp.tm_per_start_dtm between '"+from+"' and '"+to+"'"
+				+ metricPeriodClause +buildingClause+statusClause;
+        
+        String apDetailsSQL = "select d.rz_apd_id,"
+        		+ " d.rz_apd_subm_app_user_id,"
+        		+ " d.rz_apd_revw_app_user_id,"
+        		+ " d.rz_apd_ap_ver,d.rz_apd_ap_created_on_dtm,d.rz_apd_ap_last_saved_on_dtm,d.rz_apd_ap_submitted_on_dtm,	"
+        		+ " d.rz_apd_ap_status,d.rz_apd_ap_stat_upd_on_dtm,d.rz_apd_ap_text,d.rz_apd_ap_review_text,"
+        		+ " su.app_user_sso_id as submittedby,ru.app_user_sso_id as reviewedby"
+        		+ " from rz_bap_metrics m "
+        		+ " left outer join rz_action_plan_dtl d"
+        		+ " on m.rz_bapm_id = d.rz_bapm_id"
+        		+ " left outer join dsc_app_user su"
+        		+ " on d.rz_apd_subm_app_user_id = su.app_user_id"
+        		+ " left outer join dsc_app_user ru"
+        		+ " on d.rz_apd_revw_app_user_id = ru.app_user_id"
+        		+ " where m.rz_bapm_id= ?";
+					
+        
+        
+        String reasonSQL = "select ar.mpvr_id,"
+		           + " ar.mpr_id,"
+		           + " r.mpr_display_text,"
+		           + " ar.mpvr_comment,"
+		           + " r.mpr_desc "
+		           + " from MTRC_MPV_REASONS ar" + " join MTRC_MP_REASON r" + " on ar.mpr_id = r.mpr_id"
+		           + " where ar.mtrc_period_val_id= ?";
+
+        
+        try 
+		{
+			conn = ConnectionManager.mtrcConn().getConnection();
+		} 
+		catch (Exception e)
+		{
+			e.printStackTrace();
+			retJson.put("result", "FAILED");
+			retJson.put("resultCode", "200");
+			retJson.put("message", "DB Connection Failed");					
+			return retJson;
+		}
+        
+        try
+        {
+        	
+        	apPS = conn.createStatement();
+        	rs = apPS.executeQuery(apSQL);
+			int value_id = 0;
+
+        	while(rs.next())
+        	{
+        		JSONObject actPlan = new JSONObject();       			
+    			value_id = rs.getInt("mtrc_period_val_id");
+    			int bapmId = rs.getInt("rz_bapm_id");
+				actPlan.put("month", rs.getInt("month"));
+				actPlan.put("year", rs.getInt("year"));
+				actPlan.put("dsc_mtrc_lc_bldg_name", rs.getString("dsc_mtrc_lc_bldg_name"));
+				actPlan.put("dsc_mtrc_lc_bldg_id", rs.getInt("dsc_mtrc_lc_bldg_id"));
+				actPlan.put("mtrc_prod_display_text", rs.getString("mtrc_prod_display_text"));
+				actPlan.put("mtrc_period_id", rs.getInt("mtrc_period_id"));
+				String value = rs.getString("mtrc_period_val_value");
+				
+				if(rs.getString("data_type_token").equals("pct"))
+				{
+					double valueNum = Double.parseDouble(value)*100;
+					value = df2.format(valueNum);
+					actPlan.put("mtrc_period_val_value", value);
+				}
+				else
+				{
+					actPlan.put("mtrc_period_val_value", value);
+				}
+				actPlan.put("goal_txt", rs.getString("goal_txt"));
+				actPlan.put("mtrc_period_val_id", value_id);
+				actPlan.put("rz_bapm_status", rs.getString("rz_bapm_status"));
+				actPlan.put("rz_bapm_id",rs.getInt("rz_bapm_id"));				
+				actPlan.put("rz_bapm_created_on_dtm", rs.getTimestamp("rz_bapm_created_on_dtm"));
+				actPlan.put("rz_bapm_status_updt_dtm", rs.getTimestamp("rz_bapm_status_updt_dtm"));
+				actPlan.put("rz_bapm_ntfy_dtm", rs.getTimestamp("rz_bapm_ntfy_dtm"));
+				actPlan.put("rz_bapm_approved_on_dtm", rs.getTimestamp("rz_bapm_approved_on_dtm"));
+				//System.out.println("bapmId = "+bapmId);
+				//System.out.println(apDetailsSQL);
+				JSONArray details = new JSONArray();
+				apdPS = conn.prepareStatement(apDetailsSQL);
+				apdPS.setInt(1, bapmId);
+				ResultSet res = apdPS.executeQuery();
+				
+				while(res.next())
+				{
+					if(res.getString("rz_apd_id")!=null)
+					{
+						JSONObject version = new JSONObject();
+						version.put("rz_apd_id", res.getInt("rz_apd_id"));
+						version.put("rz_apd_subm_app_user_id", res.getInt("rz_apd_subm_app_user_id"));
+						version.put("rz_apd_revw_app_user_id", res.getInt("rz_apd_revw_app_user_id"));
+						version.put("rz_apd_ap_ver", res.getInt("rz_apd_ap_ver"));
+						version.put("rz_apd_ap_created_on_dtm", res.getTimestamp("rz_apd_ap_created_on_dtm"));
+						version.put("rz_apd_ap_last_saved_on_dtm", res.getTimestamp("rz_apd_ap_last_saved_on_dtm"));
+						version.put("rz_apd_ap_submitted_on_dtm", res.getTimestamp("rz_apd_ap_submitted_on_dtm"));
+						version.put("rz_apd_ap_status", res.getString("rz_apd_ap_status"));
+						version.put("rz_apd_ap_stat_upd_on_dtm", res.getTimestamp("rz_apd_ap_stat_upd_on_dtm"));
+						version.put("rz_apd_ap_text", res.getString("rz_apd_ap_text"));
+						version.put("rz_apd_ap_review_text", res.getString("rz_apd_ap_review_text"));
+						version.put("submittedby", res.getString("submittedby"));
+						version.put("reviewedby", res.getString("reviewedby"));
+						details.put(version);							
+					}						
+				}
+				actPlan.put("details",details);
+
+				JSONArray reasons = new JSONArray();
+				rPS = conn.prepareStatement(reasonSQL);
+				rPS.setInt(1, value_id);
+			    res = rPS.executeQuery(); 
+				ResultSetMetaData rsmd = res.getMetaData();
+				int numColomns = rsmd.getColumnCount();				
+				while(res.next())
+				{
+					JSONObject reason = new JSONObject();
+					for(int i = 1;i<numColomns;i++)
+					{
+						String column_name = rsmd.getColumnName(i);
+
+						reason.put(column_name, res.getString(i)==null?"":res.getString(i));
+					}
+					reasons.put(reason);
+				}
+				actPlan.put("assignedreasons", reasons);
+    				
+    				
+
+				actionPlans.put(actPlan);
+				res.close();
+        	}// end of while(rs.next())
+        	rs.close();
+        	
+        	retJson.put("result", "Success");
+			retJson.put("actionplans", actionPlans);
+        	
+        	
+        }//end of try
+        catch(Exception e)
+        {
+        	e.printStackTrace();
+			retJson.put("result", "FAILED");
+			retJson.put("resultCode", "200");
+			retJson.put("message", "Error: "+e.getMessage());
+        }//end of catch
+        finally
+        {
+        	if(apPS!=null)
+			{
+				try{apPS.close();} catch(Exception e){e.printStackTrace();}
+			}
+			if(rPS!=null)
+			{
+				try{rPS.close();} catch(Exception e){e.printStackTrace();}
+			}
+			if(conn!=null)
+			{
+				try{conn.close();} catch(Exception e){e.printStackTrace();}
+			}       	
+        }//end of finally
+        
+		
+		return retJson;
+	}
+	
 }

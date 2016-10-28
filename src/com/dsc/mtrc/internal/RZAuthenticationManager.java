@@ -90,6 +90,93 @@ public class RZAuthenticationManager {
 						JSONObject jbuilding = new JSONObject();
 						jbuilding.put("dsc_mtrc_lc_bldg_id", bldg.getBuildingId());
 						jbuilding.put("dsc_mtrc_lc_bldg_name", bldg.getBuildingName());
+						jbuilding.put("dsc_mtrc_lc_bldg_code", bldg.getBuildingCode());
+						jbuildings.put(jbuilding);
+					}
+					
+				}
+				retJson.put("buildings", jbuildings);
+				rb = Response.ok(retJson.toString()).build();
+			}
+			else
+			{
+				
+				retJson.put("result", "FAILED");
+				retJson.put("resultCode", "200");
+				retJson.put("message", "Error:Cannot find user information");
+				rb = Response.ok(retJson.toString()).build();			
+				return rb;
+			}
+		}
+		catch(Exception e)
+		{
+			e.printStackTrace();
+			JSONObject errJson = new JSONObject();
+			errJson.put("result", "FAILED");
+			errJson.put("resultCode", "200");
+			errJson.put("message", "Error: "+e.getMessage());
+			rb = Response.ok(errJson.toString()).build();			
+			return rb;
+		}
+		
+				
+		return rb;
+	}
+	public Response mockLoginDMUser(String ssoId) throws JSONException
+	{
+		Response rb = null;
+		User user = getUserInfo(ssoId,"DSC AD");		
+		JSONObject retJson = new JSONObject();
+		JSONArray jroles = new JSONArray();
+		
+		JSONArray jbuildings = new JSONArray();
+		
+		try
+		{
+			if(user!=null && user.getAppUserId()>0)
+			{
+				retJson.put("result", "Success");
+				retJson.put("username", user.getFullName());
+				retJson.put("user_id", user.getAppUserId());
+				retJson.put("email", user.getEmail());
+				retJson.put("sso_id", user.getSsoId());
+				if(user.getRoles()!=null)
+				{
+					for(Role role: user.getRoles())
+					{
+						JSONObject jrole = new JSONObject();
+						if(role.getProdName().equals("Metric Data Management"))
+						{
+							jrole.put("prod_name",role.getProdName());
+							jrole.put("role_name",role.getRoleName());
+							jrole.put("role_id", role.getRoleId());
+							jrole.put("role_desc", role.getDescription());
+							if(role.getRoleMetricPeriods()!=null)
+							{
+								JSONArray jmperiods = new JSONArray();
+								for(RoleMetricPeriod rmp :role.getRoleMetricPeriods())
+								{
+									JSONObject jmperiod = new JSONObject();
+									jmperiod.put("metric_period_name", rmp.getMetricPeriodName());
+									jmperiod.put("metric_period_id", rmp.getMetricPeriodId());
+									jmperiods.put(jmperiod);							
+								}
+								jrole.put("metrics", jmperiods);
+							}										
+							jroles.put(jrole);	
+						}
+										
+					}//end of for(Role role: user.getRoles())
+				}			
+				retJson.put("roles", jroles);
+				if(user.getBuilginds()!=null)
+				{
+					for(Building bldg:user.getBuilginds())
+					{
+						JSONObject jbuilding = new JSONObject();
+						jbuilding.put("dsc_mtrc_lc_bldg_id", bldg.getBuildingId());
+						jbuilding.put("dsc_mtrc_lc_bldg_name", bldg.getBuildingName());
+						jbuilding.put("dsc_mtrc_lc_bldg_code", bldg.getBuildingCode());
 						jbuildings.put(jbuilding);
 					}
 					
@@ -145,6 +232,60 @@ public class RZAuthenticationManager {
 				    if(validator.equals("Success"))
 				    {
 				    	return mockLoginUser(username);
+				    }
+				    else
+				    {
+				    	retJson.put("result", "FAILED");
+						retJson.put("resultCode", "200");
+						retJson.put("message", validator);
+						rb = Response.ok(retJson.toString()).build();
+				    }
+				}
+				else
+				{				
+					rb = Response.ok(adResult.toString()).build();
+				}
+			}
+			else
+			{
+				retJson.put("result", "FAILED");
+				retJson.put("resultCode", "200");
+				retJson.put("message", "Error: Cannot authenticate user");
+				rb = Response.ok(retJson.toString()).build();
+			}
+		}
+		catch(Exception e)
+		{
+			
+		}
+		
+		
+		return rb;
+		
+	}
+	public Response loginRZDMUser(String username, String password) throws JSONException
+	{
+		Response rb = null;
+		JSONObject retJson = new JSONObject();
+		String fullName = null;
+		String email = null;
+		
+		 
+		JSONObject adResult = authenticateDSCADUser(getADUrl(),username,password);
+		
+		try
+		{
+			if(adResult !=null && adResult.has("result"))
+			{
+				if(adResult.getString("result").equals("SUCCESS"))
+				{
+					fullName = adResult.getJSONObject("DSCAuthenticationSrv").getString("first_name")+" "+adResult.getJSONObject("DSCAuthenticationSrv").getString("last_name");
+				    email =adResult.getJSONObject("DSCAuthenticationSrv").getString("email"); 
+				    String validator = authorizeRZDMUser(username,"DSC AD",fullName,email);
+				    System.out.println("authorize user returned: "+validator);
+				    if(validator.equals("Success"))
+				    {
+				    	return mockLoginDMUser(username);
 				    }
 				    else
 				    {
@@ -299,7 +440,8 @@ public class RZAuthenticationManager {
 				+ " and getdate() between a.mma_eff_start_date and a.mma_eff_end_date";
 		
 		String bldgSQL = "select b.dsc_mtrc_lc_bldg_name,"
-				+ " b.dsc_mtrc_lc_bldg_id"
+				+ " b.dsc_mtrc_lc_bldg_id,"
+				+ " b.dsc_mtrc_lc_bldg_code"
 				+ " from RZ_BLDG_AUTHORIZATION a,"
 				+ " DSC_MTRC_LC_BLDG b"
 				+ " where a.app_user_id = ? "
@@ -368,6 +510,7 @@ public class RZAuthenticationManager {
 				Building building = new Building();
 				building.setBuildingId(rs.getInt("dsc_mtrc_lc_bldg_id"));
 				building.setBuildingName(rs.getString("dsc_mtrc_lc_bldg_name"));
+				building.setBuildingCode(rs.getString("dsc_mtrc_lc_bldg_code"));
 				user.getBuilginds().add(building);
 			}//end of while
 			rs.close();
@@ -701,5 +844,163 @@ public class RZAuthenticationManager {
 		return result;
 	}
 
+	public String authorizeRZDMUser(String ssoId,String ssoSystem, String fullName, String email)
+	{
+		
+		Connection conn = null;
+		PreparedStatement ps = null;
+		
+		PreparedStatement validateRolePS = null;
+		PreparedStatement getUserRolePS = null;
+		
+		
+		ResultSet rs = null;
+		String result = null;//this string will be returned to the called
+		//ResultSetMetaData rsmd = res.getMetaData();
+		
+		
+		String userValidationSQL = "select * from DSC_APP_USER where app_user_sso_id = ? and app_user_sso_system = ?";
+		try
+		{
+			conn = ConnectionManager.mtrcConn().getConnection();
+		} 
+		catch (Exception e)
+		{
+			e.printStackTrace();
+			return "Error:"+e.getMessage();
+		}
+		
+		try
+		{
+			conn.setAutoCommit(false);
+			ps = conn.prepareStatement(userValidationSQL);
+			ps.setString(1, ssoId);
+			ps.setString(2, ssoSystem);
+			rs = ps.executeQuery();
+			if(rs.next())
+			{
+				
+				if(rs.getString("app_user_disabled_yn").equals("Y"))
+				{
+					result = "Error: Red Zone User is Disabled";
+				}
+				else
+				{
+					int appUsrId = rs.getInt("app_user_id");					
+					
+					//at this point we're done with user validation.
+					//now we need to validate user role
+					
+					String validateRoleSQL = "select count(*) cnt"
+							+ " from dsc_app_user u join"
+							+ " MTRC_USER_APP_ROLES ap"
+							+ " on u.app_user_id = ap.app_user_id  join"
+							+ " MTRC_APP_ROLE r on ap.mar_id = r.mar_id join"
+							+ " MTRC_PRODUCT prod on r.prod_id = prod.prod_id"
+							+ " where u.app_user_sso_id = ?"
+							+ " and u.app_user_sso_system = ?"
+							+ " and prod.prod_token = ?"
+							+ " and getdate() between ap.muar_eff_start_dt and ap.muar_eff_end_dt"
+							+ " and getdate() between r.mar_eff_start_dt and r.mar_eff_end_dt";
+
+					validateRolePS = conn.prepareStatement(validateRoleSQL);
+					validateRolePS.setString(1, ssoId);
+					validateRolePS.setString(2, ssoSystem);
+					validateRolePS.setString(3, "MTRC_DM_TOOL");
+					ResultSet res = validateRolePS.executeQuery();
+					int roleCount = 0;
+					while(res.next())
+					{
+						roleCount = res.getInt("cnt");
+					}
+					
+					
+					if(roleCount>0)//user has role(s) assigned to him/her
+					{
+						result = "Success";
+					}
+					else//need to create RZ_USER role for this user
+					{
+
+						  result = "User is not authorized to access this application";
+
+						
+						
+					}//end  else
+									
+				}//end  else
+				
+				
+				
+				
+			}//end of if(rs.next())
+			
+		
+		}//end of try
+		catch(Exception e)
+		{
+			try
+			{
+				conn.rollback();
+			}
+			catch(SQLException e1)
+			{
+				e1.printStackTrace();
+			}
+			e.printStackTrace();
+			result = "Error: "+e.getMessage();
+			
+		}
+		finally
+		{
+			if(ps !=null)
+			{
+				try
+				{
+					ps.close();
+				}
+				catch(Exception e1)
+				{
+					e1.printStackTrace();
+				}
+			}
+			if(validateRolePS!=null)
+			{
+				try
+				{
+					validateRolePS.close();
+				}
+				catch(Exception e1)
+				{
+					e1.printStackTrace();
+				}
+			}
+			
+			if(getUserRolePS!=null)
+			{
+				try
+				{
+					getUserRolePS.close();
+				}
+				catch(Exception e1)
+				{
+					e1.printStackTrace();
+				}
+			}			
+			if(conn!=null)
+			{
+				try
+				{
+					conn.close();
+				}
+				catch(Exception e1)
+				{
+					e1.printStackTrace();
+				}
+			}
+			
+		}//end of finally
+		return result;
+	}
 }
 
