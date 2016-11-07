@@ -1679,6 +1679,8 @@ public class ActionPlanManager {
 		int bapmId = -1; 
 		int buildindId = -1;
 		int mpId = -1;
+		int subId = -1;
+		int revId = -1;
 		
 		
 		if(!inputJsonObj.has("productname"))
@@ -1710,7 +1712,23 @@ public class ActionPlanManager {
 			int begYear = inputJsonObj.getInt("begyear");
 			int endMonth = inputJsonObj.getInt("endmonth");
 			int endYear = inputJsonObj.getInt("endyear");
-			//"mtrc_period_id":"1","dsc_mtrc_lc_bldg_id":"40"
+			
+			if(endYear-begYear>1)
+			{
+				retJson.put("result", "FAILED");
+				retJson.put("resultCode", "200");
+				retJson.put("message", "Date Range has to be less than 1 year");
+				rb = Response.ok(retJson.toString()).build();			
+				return rb;
+			}
+			if(endYear-begYear==1&&begMonth<endMonth)
+			{
+				retJson.put("result", "FAILED");
+				retJson.put("resultCode", "200");
+				retJson.put("message", "Date Range has to be less than 1 year");
+				rb = Response.ok(retJson.toString()).build();			
+				return rb;
+			}
 			if(inputJsonObj.has("mtrc_period_id") && inputJsonObj.getString("mtrc_period_id")!=null && !inputJsonObj.getString("mtrc_period_id").equals(""))
 			{
 				mpId = inputJsonObj.getInt("mtrc_period_id");
@@ -1725,8 +1743,17 @@ public class ActionPlanManager {
 				status = inputJsonObj.getString("status");
 	
 			}
+			if(inputJsonObj.has("submitter") && inputJsonObj.getString("submitter")!=null && !inputJsonObj.getString("submitter").equals(""))
+			{	
+				subId = inputJsonObj.getInt("submitter");
+	
+			}
+			if(inputJsonObj.has("reviewer") && inputJsonObj.getString("reviewer")!=null && !inputJsonObj.getString("reviewer").equals(""))
+			{	
+				revId = inputJsonObj.getInt("reviewer");	
+			}
 			// call lookup by date method
-			rb = Response.ok(lookupAPbyDate(prodName, begMonth,begYear,endMonth,endYear,mpId,buildindId,status).toString()).build();
+			rb = Response.ok(lookupAPbyDate(prodName, begMonth,begYear,endMonth,endYear,mpId,buildindId,status,subId,revId).toString()).build();
 		}
 		else
 		{
@@ -1933,7 +1960,7 @@ public class ActionPlanManager {
 		return retJson;
 	}
 
-	public JSONObject lookupAPbyDate(String prodName,int begMonth,int begYear,int endMonth,int endYear, int mpId, int buildingId, String status ) throws JSONException
+	public JSONObject lookupAPbyDate(String prodName,int begMonth,int begYear,int endMonth,int endYear, int mpId, int buildingId, String status, int subId, int revId ) throws JSONException
 	{
 		JSONObject retJson = new JSONObject();
 		JSONArray actionPlans = new JSONArray();
@@ -1951,7 +1978,9 @@ public class ActionPlanManager {
         String to = endMonth+"/01/"+endYear;
         String buildingClause = " and 1=1 ";
         String metricPeriodClause = " and 1=1 ";
-        String statusClause = " and 1=1 ";        
+        String statusClause = " and 1=1 ";
+        String submitterClause = " and 1=1 ";
+        String reviewerClause = " and 1=1 ";
         if(buildingId !=-1)
         {
         	buildingClause = " and mpv.dsc_mtrc_lc_bldg_id = "+buildingId;	 
@@ -1962,15 +1991,20 @@ public class ActionPlanManager {
         }
         if(status!=null)
         {        	
-        	statusClause =" and m.rz_bapm_status in("+StringsHelper.arrayToInClause(StringsHelper.stringToArray(status))+")";
-        	System.out.println("status clause = "+ statusClause);	       	
+        	statusClause =" and m.rz_bapm_status in("+StringsHelper.arrayToInClause(StringsHelper.stringToArray(status))+")";   	
         }
-        //System.out.println("bc ="+buildingClause+"  mc = "+metricPeriodClause);	
+        if(subId !=-1)
+        {
+        	submitterClause = " and m.rz_bapm_id in (select distinct rz_bapm_id from RZ_ACTION_PLAN_DTL detail WHERE detail.rz_apd_subm_app_user_id = "+subId+") ";	 
+        }
+        if(revId !=-1)
+        {
+        	reviewerClause = " and m.rz_bapm_id in (select distinct rz_bapm_id from RZ_ACTION_PLAN_DTL detail WHERE detail.rz_apd_revw_app_user_id = "+revId+") ";	 
+        }     
         String apSQL = "select  m.rz_bapm_id,m.rz_bap_id, m.mtrc_period_val_id,mpv.mtrc_period_val_value,mpv.dsc_mtrc_lc_bldg_id,mpv.mtrc_period_id,"
 				+ " (coalesce(MTRC_MPBG.mpbg_display_text, MTRC_MPG.mpg_display_text)) as goal_txt,MTRC_DATA_TYPE.data_type_token,"
 				+ " m.rz_bapm_status,m.rz_bapm_status_updt_dtm,m.rz_bapm_created_on_dtm,m.rz_bapm_ntfy_dtm,"
-				+ " m.rz_bapm_approved_on_dtm,"
-				
+				+ " m.rz_bapm_approved_on_dtm,"				
 				+ " bldg.dsc_mtrc_lc_bldg_name, mprod.mtrc_prod_display_text,"
 				+ " month(tp.tm_per_start_dtm) as month, year(tp.tm_per_start_dtm) as year"
 				+ " from rz_bap_metrics m"
@@ -2003,7 +2037,7 @@ public class ActionPlanManager {
 				+ " and tp.tm_per_start_dtm between MTRC_MPG.mpg_start_eff_dtm and MTRC_MPG.mpg_end_eff_dtm"
 				+ " and tp.tm_per_end_dtm between MTRC_MPG.mpg_start_eff_dtm and MTRC_MPG.mpg_end_eff_dtm"
 				+ " where tp.tm_per_start_dtm between '"+from+"' and '"+to+"'"
-				+ metricPeriodClause +buildingClause+statusClause;
+				+ metricPeriodClause +buildingClause+statusClause+submitterClause+reviewerClause;
         
         String apDetailsSQL = "select d.rz_apd_id,"
         		+ " d.rz_apd_subm_app_user_id,"

@@ -5,6 +5,10 @@ import java.util.Arrays;
 
 public class StringsHelper {
 
+	/*
+	 * takes in array list of strings and returns a string in the following format: 
+	 * 'str1','str2','str3','str4'	 
+	 */
 	
 	public static String arrayToInClause(ArrayList<String> input)
 	{
@@ -17,6 +21,10 @@ public class StringsHelper {
 		
 		return output;
 	}
+	
+	/*
+	 * accepts comma separated list of strings and converts it to Array list 	 
+	 */
 	public static ArrayList<String> stringToArray(String input)
 	{
 		

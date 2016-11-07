@@ -584,6 +584,31 @@ System.out.println("Message :"+rb);
 System.out.println("Message :"+rb);
 	 return rb;
 	}
+//****************  Get Tasks Summary
+@Path("/gettaskscount")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getTasks(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 TaskManager tManager  = new TaskManager();
+	 rb = tManager.getTasksSummary(inputJsonObj);
+System.out.println("Message :"+rb);
+	 return rb;
+	}
+
+//****************  Get Tasks Details
+@Path("/gettaskdetails")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getTaskDetails(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 TaskManager tManager  = new TaskManager();
+	 rb = tManager.getTaskDetails(inputJsonObj);
+System.out.println("Message :"+rb);
+	 return rb;
+	}
 
 
 }
