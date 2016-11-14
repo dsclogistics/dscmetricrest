@@ -436,7 +436,7 @@ System.out.println("Message :"+rb);
 	 Response rb = null;
 	 ActionPlanManager apManager  = new ActionPlanManager();
 	 rb = apManager.submitActionPlan(inputJsonObj);
- System.out.println("Message :"+rb);
+     System.out.println("Message :"+rb);
 	 return rb;
 	}
 //****************  Save action plan 
@@ -448,7 +448,7 @@ System.out.println("Message :"+rb);
 	 Response rb = null;
 	 ActionPlanManager apManager  = new ActionPlanManager();
 	 rb = apManager.saveActionPlan(inputJsonObj);
-System.out.println("Message :"+rb);
+     System.out.println("Message :"+rb);
 	 return rb;
 	}
 
@@ -490,7 +490,7 @@ System.out.println("Message :"+rb);
 	 return rb;
 	}
 //****************  Get User Roles
-@Path("/getmockuserroles")
+@Path("/getuserroles")
 @POST
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
@@ -509,16 +509,18 @@ System.out.println("Message :"+rb);
 		{
 			
 			RZAuthenticationManager authManager  = new RZAuthenticationManager();
-			rb = authManager.mockLoginUser(inputJsonObj.getString("sso_id"));
+			rb = authManager.loginUser(inputJsonObj.getString("sso_id"));
 		}
 	
 System.out.println("Message :"+rb);
 	 return rb;
 	}
+
+//*****************************This method Authenticates REDZONE  user against LDAP, and provides user authorization 
 @Path("/loginrzuser")
 @POST
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
+@Produces(MediaType.APPLICATION_JSON)
 	public Response loginRZUser(JSONObject inputJsonObj) throws Exception {
 	 Response rb = null;
 	 if(!inputJsonObj.has("sso_id")||(inputJsonObj.get("sso_id")==null)||(inputJsonObj.get("sso_id").equals("")))
@@ -546,10 +548,11 @@ System.out.println("Message :"+rb);
 			rb = authManager.loginRZUser(inputJsonObj.getString("sso_id"), inputJsonObj.getString("password"));
 		}
 	
-System.out.println("Message :"+rb);
+     System.out.println("Message :"+rb);
 	 return rb;
-	}
+}
 
+//*****************************This method Authenticates REDZONE  user against LDAP, and provides user authorization 
 @Path("/loginrzdmuser")
 @POST
 	@Consumes(MediaType.APPLICATION_JSON)
@@ -593,7 +596,7 @@ System.out.println("Message :"+rb);
 	 Response rb = null;
 	 TaskManager tManager  = new TaskManager();
 	 rb = tManager.getTasksSummary(inputJsonObj);
-System.out.println("Message :"+rb);
+     System.out.println("Message :"+rb);
 	 return rb;
 	}
 

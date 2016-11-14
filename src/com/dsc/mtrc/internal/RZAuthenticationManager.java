@@ -36,7 +36,7 @@ import com.dsc.mtrc.dto.User;
 
 public class RZAuthenticationManager {
 	
-	public Response mockLoginUser(String ssoId) throws JSONException
+	public Response loginUser(String ssoId) throws JSONException
 	{
 		Response rb = null;
 		User user = getUserInfo(ssoId,"DSC AD");		
@@ -231,7 +231,7 @@ public class RZAuthenticationManager {
 				    System.out.println("authorize user returned: "+validator);
 				    if(validator.equals("Success"))
 				    {
-				    	return mockLoginUser(username);
+				    	return loginUser(username);
 				    }
 				    else
 				    {
