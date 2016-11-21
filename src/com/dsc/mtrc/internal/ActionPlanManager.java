@@ -370,6 +370,7 @@ public class ActionPlanManager {
 			{
 				maxCurVersion =rs.getInt("max_ver");
 			}
+			validatePrepStmt.close();
 			if(apdId ==-1)// no action plan detail id provided by the input json
 			{
 				if(maxCurVersion > 0)//this means there's another detail record for this action plan
@@ -499,6 +500,7 @@ public class ActionPlanManager {
 					updatePrepStmt.setTimestamp(2, addDte);
 					updatePrepStmt.setInt(3, bapmId);
 					updatePrepStmt.executeUpdate();
+					updatePrepStmt.close();
 					if(apText==null)
 					{
 						updatePrepStmt = conn.prepareStatement(updateAPDetailWOTextSQL);
@@ -766,6 +768,7 @@ public class ActionPlanManager {
 			{
 				maxCurVersion =rs.getInt("max_ver");
 			}
+			validatePrepStmt.close();
 			if(maxCurVersion > 0)//this means there's another detail record for this action plan
 			{
 				//need to check to make sure previous detailed record is in rejected status
@@ -1275,7 +1278,10 @@ public class ActionPlanManager {
 				//update RZ_BAP_METRICS set rz_apd_ap_status = ?, rz_bapm_approved_on_dtm = ?, rz_bapm_status_updt_dtm where rz_bapm_id
 				updatePrepStmt = conn.prepareStatement(updateHeaderSQL);
 				updatePrepStmt.setString(1,status);
-				updatePrepStmt.setTimestamp(2, addDte);
+				if(status.equals("Approved"))
+					updatePrepStmt.setTimestamp(2, addDte);
+				else 
+					updatePrepStmt.setTimestamp(2, null);
 				updatePrepStmt.setTimestamp(3, addDte);
 				updatePrepStmt.setInt(4, bapmId);
 				updatePrepStmt.executeUpdate();

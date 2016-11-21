@@ -3,26 +3,9 @@ package com.dsc.mtrc.rest;
 
 
 //here is where I added ldap stuff
-import javax.naming.directory.Attributes;
-import javax.naming.directory.SearchResult;
-//import javax.servlet.ServletContext;
-import javax.naming.NamingEnumeration;
-import javax.naming.AuthenticationException;
-import javax.naming.AuthenticationNotSupportedException;
-import javax.naming.Context;
-import javax.naming.NameClassPair;
-//import javax.naming.NamingEnumeration;
-import javax.naming.NamingException;
-import javax.naming.directory.*;
-//import org.apache.http.HttpEntity;
-//import org.apache.http.util.EntityUtils;
 
-import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.util.Hashtable; 
-//ending lDAP stuff
 
-//new import for json
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -612,6 +595,46 @@ System.out.println("Message :"+rb);
 System.out.println("Message :"+rb);
 	 return rb;
 	}
+//****************  Get Tasks Details
+@Path("/getmyteamactivities")
+@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getMyTeamActivities(JSONObject inputJsonObj) throws Exception {
+	 Response rb = null;
+	 TaskManager tManager  = new TaskManager();
+	 rb = tManager.getMyTeamActivities(inputJsonObj);
+System.out.println("Message :"+rb);
+	 return rb;
+	}
 
+/*Method to get the list of user responsible for a specific Action Plan
+ * */
+@Path("/getusersforap")
+@POST
+@Consumes(MediaType.APPLICATION_JSON)
+@Produces(MediaType.APPLICATION_JSON)
+public Response getUserForAP(JSONObject inputJsonObj) throws Exception{
+	
+	TaskManager tManager = new TaskManager();
+	Response rb = tManager.getUsersForAp(inputJsonObj);
+	System.out.println("Message:"+rb);
+	return rb;
+	
+}
+/*Method to get the tasks summary for rz_bldg_user role
+ * */
+@Path("/getmyteamtaskscount")
+@POST
+@Consumes(MediaType.APPLICATION_JSON)
+@Produces(MediaType.APPLICATION_JSON)
+public Response getMyTeamTasksSummary(JSONObject inputJsonObj) throws Exception{
+	
+	TaskManager tManager = new TaskManager();
+	Response rb = tManager.getMyTeamActivitySummary(inputJsonObj);
+	System.out.println("Message:"+rb);
+	return rb;
+	
+}
 
 }
