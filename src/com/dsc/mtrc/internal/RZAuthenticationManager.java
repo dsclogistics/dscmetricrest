@@ -919,13 +919,10 @@ public class RZAuthenticationManager {
 					{
 						result = "Success";
 					}
-					else//need to create RZ_USER role for this user
+					else
 					{
-
 						  result = "User is not authorized to access this application";
-
-						
-						
+				
 					}//end  else
 									
 				}//end  else

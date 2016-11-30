@@ -246,11 +246,13 @@ public class ActionPlanManager {
 		PreparedStatement updatePrepStmt = null;
 		PreparedStatement insertPrepStmt = null;
 		PreparedStatement validatePrepStmt = null;
+		PreparedStatement validateExpPrepStmt = null;
 		ResultSet rs = null;
 		String updateSQL = null;
 		String insertSQL = null;
 		String validateVersionSQL = null;
 		String validateStatusSQL = null;
+		String validateExpSQL = null;
 		int bapmId;	
 		int apdId = -1;
 		int submitterId;
@@ -258,6 +260,7 @@ public class ActionPlanManager {
 		int version;
 		int maxCurVersion = 0;
 		String apText = null;
+		boolean isAPExpired = false;
 		
 
 		try 
@@ -274,6 +277,7 @@ public class ActionPlanManager {
 			return rb;
 		}		
 		
+		validateExpSQL = "select rz_bapm_status from RZ_BAP_METRICS where rz_bapm_id = ?";
 		validateVersionSQL = "select COALESCE(max(rz_apd_ap_ver),0) max_ver from RZ_ACTION_PLAN_DTL where rz_bapm_id = ?";
 		validateStatusSQL = "select rz_apd_ap_status from RZ_ACTION_PLAN_DTL where rz_bapm_id = ?";
 		updateSQL = "update rz_bap_metrics set rz_bapm_status = ?, rz_bapm_status_updt_dtm = ? where rz_bapm_id = ?";
@@ -361,46 +365,101 @@ public class ActionPlanManager {
 			System.out.println("Id = "+bapmId+" version = "+version+" user = "+submitterId+" text = "+apText);
 			
 			conn.setAutoCommit(false);
-			insertPrepStmt = conn.prepareStatement(insertSQL, PreparedStatement.RETURN_GENERATED_KEYS);
-			updatePrepStmt = conn.prepareStatement(updateSQL);
-			validatePrepStmt = conn.prepareStatement(validateVersionSQL);
-			validatePrepStmt.setInt(1, bapmId);
-			rs = validatePrepStmt.executeQuery();			
+			//first we need to check if this Action Plan header status is not expired
+			validateExpPrepStmt = conn.prepareStatement(validateExpSQL);
+			validateExpPrepStmt.setInt(1, bapmId);
+			rs = validateExpPrepStmt.executeQuery();
+			
 			while(rs.next())
 			{
-				maxCurVersion =rs.getInt("max_ver");
+				isAPExpired = rs.getString("rz_bapm_status").equals("Expired")?true:false;
 			}
-			validatePrepStmt.close();
-			if(apdId ==-1)// no action plan detail id provided by the input json
+			rs.close();
+			if(isAPExpired)//this means this action plan has Expired status and we can't continue
+			{				
+				retJson.put("result", "FAILED");
+				retJson.put("resultCode", "200");
+				retJson.put("message", "Action Plan is Expired");
+				rb = Response.ok(retJson.toString()).build();	
+			}
+			else//status of the AP isn't expired. We can continue
 			{
-				if(maxCurVersion > 0)//this means there's another detail record for this action plan
+				insertPrepStmt = conn.prepareStatement(insertSQL, PreparedStatement.RETURN_GENERATED_KEYS);
+				updatePrepStmt = conn.prepareStatement(updateSQL);
+				validatePrepStmt = conn.prepareStatement(validateVersionSQL);
+				validatePrepStmt.setInt(1, bapmId);
+				rs = validatePrepStmt.executeQuery();			
+				while(rs.next())
 				{
-					//need to check to make sure previous detailed record is in rejected status
-					validatePrepStmt = conn.prepareStatement(validateStatusSQL);
-					validatePrepStmt.setInt(1, bapmId);
-					rs = validatePrepStmt.executeQuery();
-					while(rs.next())
+					maxCurVersion =rs.getInt("max_ver");
+				}
+				validatePrepStmt.close();
+				if(apdId ==-1)// no action plan detail id provided by the input json
+				{
+					if(maxCurVersion > 0)//this means there's another detail record for this action plan
 					{
-						curStatus = rs.getString("rz_apd_ap_status");					
-					}
-					if(!curStatus.equals("Rejected"))//if it's not in rejected status, we need to return an error
-					{
-						retJson.put("result", "FAILED");
-						retJson.put("resultCode", "200");
-						retJson.put("message", "Error: Cannot Submit a new action plan. Current action plan exists and has not been rejected yet ");
-						rb = Response.ok(retJson.toString()).build();
-					}
-					else if(maxCurVersion >= version)//need to make user is passing an updated version 
-					{
-						retJson.put("result", "FAILED");
-						retJson.put("resultCode", "200");
-						retJson.put("message", "Error: Version must be greater than current max version ");
-						rb = Response.ok(retJson.toString()).build();
-					}
-					else//at this point we're done with all the validation and can perform an update and insert
+						//need to check to make sure previous detailed record is in rejected status
+						validatePrepStmt = conn.prepareStatement(validateStatusSQL);
+						validatePrepStmt.setInt(1, bapmId);
+						rs = validatePrepStmt.executeQuery();
+						while(rs.next())
+						{
+							curStatus = rs.getString("rz_apd_ap_status");					
+						}
+						if(!curStatus.equals("Rejected"))//if it's not in rejected status, we need to return an error
+						{
+							retJson.put("result", "FAILED");
+							retJson.put("resultCode", "200");
+							retJson.put("message", "Error: Cannot Submit a new action plan. Current action plan exists and has not been rejected yet ");
+							rb = Response.ok(retJson.toString()).build();
+						}
+						else if(maxCurVersion >= version)//need to make user is passing an updated version 
+						{
+							retJson.put("result", "FAILED");
+							retJson.put("resultCode", "200");
+							retJson.put("message", "Error: Version must be greater than current max version ");
+							rb = Response.ok(retJson.toString()).build();
+						}
+						else//at this point we're done with all the validation and can perform an update and insert
+						{
+							Timestamp addDte = java.sql.Timestamp.valueOf(java.time.LocalDateTime.now());
+							int newApDetailId = 0;
+							updatePrepStmt.setString(1, "Ready For Review");
+							updatePrepStmt.setTimestamp(2, addDte);
+							updatePrepStmt.setInt(3, bapmId);
+							updatePrepStmt.executeUpdate();
+							//rz_bapm_id,rz_apd_subm_app_user_id,rz_apd_ap_ver,rz_apd_ap_created_on_dtm,rz_apd_ap_status,rz_apd_ap_stat_upd_on_dtm,rz_apd_ap_text
+							
+							insertPrepStmt.setInt(1, bapmId);
+							insertPrepStmt.setInt(2, submitterId);
+							insertPrepStmt.setInt(3,version);
+							insertPrepStmt.setTimestamp(4, addDte);
+							insertPrepStmt.setString(5,"Ready For Review");
+							insertPrepStmt.setTimestamp(6, addDte);
+							insertPrepStmt.setString(7, apText);
+							insertPrepStmt.setTimestamp(8, addDte);
+							insertPrepStmt.executeUpdate();
+							rs = insertPrepStmt.getGeneratedKeys();
+							while(rs.next())
+							{
+								newApDetailId = rs.getInt(1);
+							}
+							conn.commit();
+							rs.close();
+							retJson.put("result", "Success");
+						    retJson.put("resultCode", "100");
+						    retJson.put("message", "Changes have been saved");
+						    retJson.put("rz_apd_id", newApDetailId);
+						    retJson.put("rz_apd_ap_status", "Ready For Review");
+						    rb = Response.ok(retJson.toString()).build();											
+						}
+						 					
+					}// end of if(maxCurVersion > 0)
+					else//if we're here, that means it's the first time we're adding a detail record to the ap details table
 					{
 						Timestamp addDte = java.sql.Timestamp.valueOf(java.time.LocalDateTime.now());
 						int newApDetailId = 0;
+						ResultSet res = null;
 						updatePrepStmt.setString(1, "Ready For Review");
 						updatePrepStmt.setTimestamp(2, addDte);
 						updatePrepStmt.setInt(3, bapmId);
@@ -416,13 +475,13 @@ public class ActionPlanManager {
 						insertPrepStmt.setString(7, apText);
 						insertPrepStmt.setTimestamp(8, addDte);
 						insertPrepStmt.executeUpdate();
-						rs = insertPrepStmt.getGeneratedKeys();
-						while(rs.next())
+						res = insertPrepStmt.getGeneratedKeys();
+						while(res.next())
 						{
-							newApDetailId = rs.getInt(1);
+							newApDetailId = res.getInt(1);
 						}
 						conn.commit();
-						rs.close();
+						res.close();
 						retJson.put("result", "Success");
 					    retJson.put("resultCode", "100");
 					    retJson.put("message", "Changes have been saved");
@@ -430,123 +489,89 @@ public class ActionPlanManager {
 					    retJson.put("rz_apd_ap_status", "Ready For Review");
 					    rb = Response.ok(retJson.toString()).build();											
 					}
-					 					
-				}// end of if(maxCurVersion > 0)
-				else//if we're here, that means it's the first time we're adding a detail record to the ap details table
+				}// end of if(apdId ==-1)	
+				
+				if(apdId > 0)//this means we're submitting existing record
 				{
-					Timestamp addDte = java.sql.Timestamp.valueOf(java.time.LocalDateTime.now());
-					int newApDetailId = 0;
-					ResultSet res = null;
-					updatePrepStmt.setString(1, "Ready For Review");
-					updatePrepStmt.setTimestamp(2, addDte);
-					updatePrepStmt.setInt(3, bapmId);
-					updatePrepStmt.executeUpdate();
-					//rz_bapm_id,rz_apd_subm_app_user_id,rz_apd_ap_ver,rz_apd_ap_created_on_dtm,rz_apd_ap_status,rz_apd_ap_stat_upd_on_dtm,rz_apd_ap_text
-					
-					insertPrepStmt.setInt(1, bapmId);
-					insertPrepStmt.setInt(2, submitterId);
-					insertPrepStmt.setInt(3,version);
-					insertPrepStmt.setTimestamp(4, addDte);
-					insertPrepStmt.setString(5,"Ready For Review");
-					insertPrepStmt.setTimestamp(6, addDte);
-					insertPrepStmt.setString(7, apText);
-					insertPrepStmt.setTimestamp(8, addDte);
-					insertPrepStmt.executeUpdate();
-					res = insertPrepStmt.getGeneratedKeys();
-					while(res.next())
+					validatePrepStmt = conn.prepareStatement(validateStatusSQL);
+					validatePrepStmt.setInt(1, bapmId);
+					rs = validatePrepStmt.executeQuery();
+					while(rs.next())
 					{
-						newApDetailId = res.getInt(1);
+						curStatus = rs.getString("rz_apd_ap_status");					
 					}
-					conn.commit();
-					res.close();
-					retJson.put("result", "Success");
-				    retJson.put("resultCode", "100");
-				    retJson.put("message", "Changes have been saved");
-				    retJson.put("rz_apd_id", newApDetailId);
-				    retJson.put("rz_apd_ap_status", "Ready For Review");
-				    rb = Response.ok(retJson.toString()).build();											
-				}
-			}// end of if(apdId ==-1)	
-			
-			if(apdId > 0)//this means we're submitting existing record
-			{
-				validatePrepStmt = conn.prepareStatement(validateStatusSQL);
-				validatePrepStmt.setInt(1, bapmId);
-				rs = validatePrepStmt.executeQuery();
-				while(rs.next())
-				{
-					curStatus = rs.getString("rz_apd_ap_status");					
-				}
-				if(maxCurVersion != version)// if they submitting existing record we need to check if it's the most current version of the AP
-				{
-					retJson.put("result", "FAILED");
-					retJson.put("resultCode", "200");
-					retJson.put("message", "Error: Passed version ("+version+") doesn't match the current max version ("+maxCurVersion+")");
-					rb = Response.ok(retJson.toString()).build();
-				}
-				else if(!curStatus.equals("WIP"))// since we're trying to submit existing ap, we need to make sure it's in WIP status.
-				{
-					retJson.put("result", "FAILED");
-					retJson.put("resultCode", "200");
-					retJson.put("message", "Error: Incorrect Action Plan status");
-					rb = Response.ok(retJson.toString()).build();
-				}
-				else
-				{
-					Timestamp addDte = java.sql.Timestamp.valueOf(java.time.LocalDateTime.now());
-					
-					int newApDetailId = apdId;
-					updatePrepStmt.setString(1, "Ready For Review");
-					updatePrepStmt.setTimestamp(2, addDte);
-					updatePrepStmt.setInt(3, bapmId);
-					updatePrepStmt.executeUpdate();
-					updatePrepStmt.close();
-					if(apText==null)
+					if(maxCurVersion != version)// if they submitting existing record we need to check if it's the most current version of the AP
 					{
-						updatePrepStmt = conn.prepareStatement(updateAPDetailWOTextSQL);
-						//update RZ_ACTION_PLAN_DTL set rz_apd_ap_status = ?
-						//,rz_apd_ap_stat_upd_on_dtm = ?,rz_apd_ap_stat_upd_on_dtm =?, rz_apd_ap_submitted_on_dtm = ? where rz_apd_id = ?
-						updatePrepStmt.setString(1, "Ready For Review");
-						updatePrepStmt.setTimestamp(2, addDte);					
-						updatePrepStmt.setTimestamp(3, addDte);
-						updatePrepStmt.setInt(4, apdId);
-						updatePrepStmt.executeUpdate();
-						retJson.put("result", "Success");
-					    retJson.put("resultCode", "100");
-					    retJson.put("message", "Changes have been saved");
-					    retJson.put("rz_apd_id", newApDetailId);
-					    retJson.put("rz_apd_ap_status", "Ready For Review");
-					    rb = Response.ok(retJson.toString()).build();			
-						conn.commit();
+						retJson.put("result", "FAILED");
+						retJson.put("resultCode", "200");
+						retJson.put("message", "Error: Passed version ("+version+") doesn't match the current max version ("+maxCurVersion+")");
+						rb = Response.ok(retJson.toString()).build();
+					}
+					else if(!curStatus.equals("WIP"))// since we're trying to submit existing ap, we need to make sure it's in WIP status.
+					{
+						retJson.put("result", "FAILED");
+						retJson.put("resultCode", "200");
+						retJson.put("message", "Error: Incorrect Action Plan status");
+						rb = Response.ok(retJson.toString()).build();
 					}
 					else
 					{
-						updatePrepStmt = conn.prepareStatement(updateAPDetailSQL); 
-						//update RZ_ACTION_PLAN_DTL set 
-						//rz_apd_ap_status = ?,
-						//rz_apd_ap_text = ?,
-						//rz_apd_ap_stat_upd_on_dtm =?,
-						//rz_apd_ap_submitted_on_dtm = ?
-						//where rz_apd_id = ?"
-						updatePrepStmt.setString(1, "Ready For Review");						
-						updatePrepStmt.setString(2, apText);
-						updatePrepStmt.setTimestamp(3, addDte);
-						updatePrepStmt.setTimestamp(4, addDte);
-						updatePrepStmt.setInt(5, apdId);
+						Timestamp addDte = java.sql.Timestamp.valueOf(java.time.LocalDateTime.now());
+						
+						int newApDetailId = apdId;
+						updatePrepStmt.setString(1, "Ready For Review");
+						updatePrepStmt.setTimestamp(2, addDte);
+						updatePrepStmt.setInt(3, bapmId);
 						updatePrepStmt.executeUpdate();
-						retJson.put("result", "Success");
-					    retJson.put("resultCode", "100");
-					    retJson.put("message", "Changes have been saved");
-					    retJson.put("rz_apd_id", newApDetailId);
-					    retJson.put("rz_apd_ap_status", "Ready For Review");
-					    rb = Response.ok(retJson.toString()).build();			
-						conn.commit();
+						updatePrepStmt.close();
+						if(apText==null)
+						{
+							updatePrepStmt = conn.prepareStatement(updateAPDetailWOTextSQL);
+							//update RZ_ACTION_PLAN_DTL set rz_apd_ap_status = ?
+							//,rz_apd_ap_stat_upd_on_dtm = ?,rz_apd_ap_stat_upd_on_dtm =?, rz_apd_ap_submitted_on_dtm = ? where rz_apd_id = ?
+							updatePrepStmt.setString(1, "Ready For Review");
+							updatePrepStmt.setTimestamp(2, addDte);					
+							updatePrepStmt.setTimestamp(3, addDte);
+							updatePrepStmt.setInt(4, apdId);
+							updatePrepStmt.executeUpdate();
+							retJson.put("result", "Success");
+						    retJson.put("resultCode", "100");
+						    retJson.put("message", "Changes have been saved");
+						    retJson.put("rz_apd_id", newApDetailId);
+						    retJson.put("rz_apd_ap_status", "Ready For Review");
+						    rb = Response.ok(retJson.toString()).build();			
+							conn.commit();
+						}
+						else
+						{
+							updatePrepStmt = conn.prepareStatement(updateAPDetailSQL); 
+							//update RZ_ACTION_PLAN_DTL set 
+							//rz_apd_ap_status = ?,
+							//rz_apd_ap_text = ?,
+							//rz_apd_ap_stat_upd_on_dtm =?,
+							//rz_apd_ap_submitted_on_dtm = ?
+							//where rz_apd_id = ?"
+							updatePrepStmt.setString(1, "Ready For Review");						
+							updatePrepStmt.setString(2, apText);
+							updatePrepStmt.setTimestamp(3, addDte);
+							updatePrepStmt.setTimestamp(4, addDte);
+							updatePrepStmt.setInt(5, apdId);
+							updatePrepStmt.executeUpdate();
+							retJson.put("result", "Success");
+						    retJson.put("resultCode", "100");
+						    retJson.put("message", "Changes have been saved");
+						    retJson.put("rz_apd_id", newApDetailId);
+						    retJson.put("rz_apd_ap_status", "Ready For Review");
+						    rb = Response.ok(retJson.toString()).build();			
+							conn.commit();
+						}
+						
 					}
-					
+
+
 				}
-
-
 			}
+	
 			
 			
 		}
@@ -617,7 +642,7 @@ public class ActionPlanManager {
 					e1.printStackTrace();
 				}
 			}
-		}
+		}//end if finally
 		
 		return rb;
 	}
@@ -660,10 +685,12 @@ public class ActionPlanManager {
 		PreparedStatement updatePrepStmt = null;
 		PreparedStatement insertPrepStmt = null;
 		PreparedStatement validatePrepStmt = null;
+		PreparedStatement validateExpPrepStmt = null;
 		int bapmId = -1;
 		int version = -1;
 		int submitterId = -1;
 		String apText = null;
+		boolean isAPExpired = false;
 
 		try 
 		{
@@ -684,6 +711,8 @@ public class ActionPlanManager {
 		String updateSQL = "update rz_bap_metrics set rz_bapm_status = ?, rz_bapm_status_updt_dtm = ? where rz_bapm_id = ?";
 		String insertSQL = "insert into RZ_ACTION_PLAN_DTL(rz_bapm_id,rz_apd_subm_app_user_id,rz_apd_ap_ver,rz_apd_ap_created_on_dtm,rz_apd_ap_status,rz_apd_ap_stat_upd_on_dtm,rz_apd_ap_last_saved_on_dtm,rz_apd_ap_text)"
 				+ " values(?,?,?,?,?,?,?,?)";
+		
+		String validateExpSQL = "select rz_bapm_status from RZ_BAP_METRICS where rz_bapm_id = ?";
 		
 		
 		try
@@ -758,43 +787,98 @@ public class ActionPlanManager {
 		try
 		{
 			conn.setAutoCommit(false);
-			updatePrepStmt = conn.prepareStatement(updateSQL);
-			insertPrepStmt = conn.prepareStatement(insertSQL,PreparedStatement.RETURN_GENERATED_KEYS);
-			validatePrepStmt = conn.prepareStatement(validateVersionSQL);
-			validatePrepStmt.setInt(1, bapmId);
-			rs = validatePrepStmt.executeQuery();			
-			int maxCurVersion=-1;
+			
+			//first we need to check if this Action Plan header status is not expired
+			validateExpPrepStmt = conn.prepareStatement(validateExpSQL);
+			validateExpPrepStmt.setInt(1, bapmId);
+			rs = validateExpPrepStmt.executeQuery();
+			
 			while(rs.next())
 			{
-				maxCurVersion =rs.getInt("max_ver");
+				isAPExpired = rs.getString("rz_bapm_status").equals("Expired")?true:false;
 			}
-			validatePrepStmt.close();
-			if(maxCurVersion > 0)//this means there's another detail record for this action plan
+			rs.close();
+			if(isAPExpired)//this means this action plan has Expired status and we can't continue
+			{				
+				retJson.put("result", "FAILED");
+				retJson.put("resultCode", "200");
+				retJson.put("message", "Action Plan is Expired");
+				rb = Response.ok(retJson.toString()).build();	
+			}
+			else//if here, that means Action plan status isn't expired and we can continue
 			{
-				//need to check to make sure previous detailed record is in rejected status
-				String curStatus = null;
-				validatePrepStmt = conn.prepareStatement(validateStatusSQL);
+				updatePrepStmt = conn.prepareStatement(updateSQL);
+				insertPrepStmt = conn.prepareStatement(insertSQL,PreparedStatement.RETURN_GENERATED_KEYS);
+				validatePrepStmt = conn.prepareStatement(validateVersionSQL);
 				validatePrepStmt.setInt(1, bapmId);
-				rs = validatePrepStmt.executeQuery();
+				rs = validatePrepStmt.executeQuery();			
+				int maxCurVersion=-1;
 				while(rs.next())
 				{
-					curStatus = rs.getString("rz_apd_ap_status");					
+					maxCurVersion =rs.getInt("max_ver");
 				}
-				if(!curStatus.equals("Rejected"))//if it's not in rejected status, we need to return an error
+				validatePrepStmt.close();
+				if(maxCurVersion > 0)//this means there's another detail record for this action plan
 				{
-					retJson.put("result", "FAILED");
-					retJson.put("resultCode", "200");
-					retJson.put("message", "Error: Cannot Submit a new action plan. Current action plan exists and has not been rejected yet ");
-					rb = Response.ok(retJson.toString()).build();
-				}
-				else if(maxCurVersion >= version)//need to make user is passing an updated version 
-				{
-					retJson.put("result", "FAILED");
-					retJson.put("resultCode", "200");
-					retJson.put("message", "Error: Version must be greater than current max version ");
-					rb = Response.ok(retJson.toString()).build();
-				}
-				else//at this point we're done with all the validation and can perform an update and insert
+					//need to check to make sure previous detailed record is in rejected status
+					String curStatus = null;
+					validatePrepStmt = conn.prepareStatement(validateStatusSQL);
+					validatePrepStmt.setInt(1, bapmId);
+					rs = validatePrepStmt.executeQuery();
+					while(rs.next())
+					{
+						curStatus = rs.getString("rz_apd_ap_status");					
+					}
+					if(!curStatus.equals("Rejected"))//if it's not in rejected status, we need to return an error
+					{
+						retJson.put("result", "FAILED");
+						retJson.put("resultCode", "200");
+						retJson.put("message", "Error: Cannot Submit a new action plan. Current action plan exists and has not been rejected yet ");
+						rb = Response.ok(retJson.toString()).build();
+					}
+					else if(maxCurVersion >= version)//need to make user is passing an updated version 
+					{
+						retJson.put("result", "FAILED");
+						retJson.put("resultCode", "200");
+						retJson.put("message", "Error: Version must be greater than current max version ");
+						rb = Response.ok(retJson.toString()).build();
+					}
+					else//at this point we're done with all the validation and can perform an update and insert
+					{
+						Timestamp addDte = java.sql.Timestamp.valueOf(java.time.LocalDateTime.now());
+						int newApDetailId = 0;
+						updatePrepStmt.setString(1, "WIP");
+						updatePrepStmt.setTimestamp(2, addDte);
+						updatePrepStmt.setInt(3, bapmId);
+						updatePrepStmt.executeUpdate();
+						
+						//rz_bapm_id,rz_apd_subm_app_user_id,rz_apd_ap_ver,rz_apd_ap_created_on_dtm,rz_apd_ap_status,rz_apd_ap_stat_upd_on_dtm,rz_apd_ap_last_saved_on_dtm,rz_apd_ap_text
+						insertPrepStmt.setInt(1, bapmId);
+						insertPrepStmt.setInt(2, submitterId);
+						insertPrepStmt.setInt(3,version);
+						insertPrepStmt.setTimestamp(4, addDte);
+						insertPrepStmt.setString(5,"WIP");
+						insertPrepStmt.setTimestamp(6, addDte);					
+						insertPrepStmt.setTimestamp(7, addDte);
+						insertPrepStmt.setString(8, apText);
+						insertPrepStmt.executeUpdate();
+						rs = insertPrepStmt.getGeneratedKeys();
+						while(rs.next())
+						{
+							newApDetailId = rs.getInt(1);
+						}
+						conn.commit();
+						rs.close();
+						retJson.put("result", "Success");
+					    retJson.put("resultCode", "100");
+					    retJson.put("message", "Changes have been saved");
+					    retJson.put("rz_apd_id", newApDetailId);
+					    retJson.put("rz_apd_ap_status", "WIP");
+					    rb = Response.ok(retJson.toString()).build();											
+					}
+					 					
+				}// end of if(maxCurVersion > 0)
+				else// this is the first time we're adding the data for this action plan
 				{
 					Timestamp addDte = java.sql.Timestamp.valueOf(java.time.LocalDateTime.now());
 					int newApDetailId = 0;
@@ -813,13 +897,13 @@ public class ActionPlanManager {
 					insertPrepStmt.setTimestamp(7, addDte);
 					insertPrepStmt.setString(8, apText);
 					insertPrepStmt.executeUpdate();
-					rs = insertPrepStmt.getGeneratedKeys();
-					while(rs.next())
+					ResultSet res = insertPrepStmt.getGeneratedKeys();
+					while(res.next())
 					{
-						newApDetailId = rs.getInt(1);
+						newApDetailId = res.getInt(1);
 					}
 					conn.commit();
-					rs.close();
+					res.close();
 					retJson.put("result", "Success");
 				    retJson.put("resultCode", "100");
 				    retJson.put("message", "Changes have been saved");
@@ -827,41 +911,8 @@ public class ActionPlanManager {
 				    retJson.put("rz_apd_ap_status", "WIP");
 				    rb = Response.ok(retJson.toString()).build();											
 				}
-				 					
-			}// end of if(maxCurVersion > 0)
-			else// this is the first time we're adding the data for this action plan
-			{
-				Timestamp addDte = java.sql.Timestamp.valueOf(java.time.LocalDateTime.now());
-				int newApDetailId = 0;
-				updatePrepStmt.setString(1, "WIP");
-				updatePrepStmt.setTimestamp(2, addDte);
-				updatePrepStmt.setInt(3, bapmId);
-				updatePrepStmt.executeUpdate();
-				
-				//rz_bapm_id,rz_apd_subm_app_user_id,rz_apd_ap_ver,rz_apd_ap_created_on_dtm,rz_apd_ap_status,rz_apd_ap_stat_upd_on_dtm,rz_apd_ap_last_saved_on_dtm,rz_apd_ap_text
-				insertPrepStmt.setInt(1, bapmId);
-				insertPrepStmt.setInt(2, submitterId);
-				insertPrepStmt.setInt(3,version);
-				insertPrepStmt.setTimestamp(4, addDte);
-				insertPrepStmt.setString(5,"WIP");
-				insertPrepStmt.setTimestamp(6, addDte);					
-				insertPrepStmt.setTimestamp(7, addDte);
-				insertPrepStmt.setString(8, apText);
-				insertPrepStmt.executeUpdate();
-				ResultSet res = insertPrepStmt.getGeneratedKeys();
-				while(res.next())
-				{
-					newApDetailId = res.getInt(1);
-				}
-				conn.commit();
-				res.close();
-				retJson.put("result", "Success");
-			    retJson.put("resultCode", "100");
-			    retJson.put("message", "Changes have been saved");
-			    retJson.put("rz_apd_id", newApDetailId);
-			    retJson.put("rz_apd_ap_status", "WIP");
-			    rb = Response.ok(retJson.toString()).build();											
 			}
+			
 			
 			
 			
@@ -888,6 +939,17 @@ public class ActionPlanManager {
 		}//end of catch
 		finally
 		{
+			if(validateExpPrepStmt != null)
+			{
+				try
+				{
+					validateExpPrepStmt.close();
+				}
+				catch(Exception e1)
+				{
+					e1.printStackTrace();
+				}
+			}
 			if(validatePrepStmt != null)
 			{
 				try
@@ -949,7 +1011,7 @@ public class ActionPlanManager {
 		int bapmId = -1;
 		String apText = null;
 		String curStatus = null;
-		
+		boolean isAPExpired = false;
 			
 		try
 		{
@@ -1033,45 +1095,70 @@ public class ActionPlanManager {
 			return rb;
 		}	
 		
+		String validateExpSQL = "select rz_bapm_status from RZ_BAP_METRICS where rz_bapm_id = ?";
 		String validateSQL = "select rz_apd_ap_ver, rz_apd_ap_status  from RZ_ACTION_PLAN_DTL where rz_apd_id = ?";
 		String updateSQL = "update RZ_ACTION_PLAN_DTL set rz_apd_ap_text = ?,rz_apd_ap_last_saved_on_dtm = ?  where rz_apd_id = ? ";
+		
+		PreparedStatement validateExpPrepStmt = null;
 		PreparedStatement validatePrepStmt = null;
 		PreparedStatement updatePrepStmt = null;
+		
 		try
 		{
 			conn.setAutoCommit(false);
-			validatePrepStmt = conn.prepareStatement(validateSQL);
-			updatePrepStmt = conn.prepareStatement(updateSQL);
+			//first we need to check if this Action Plan header status is not expired
+			validateExpPrepStmt = conn.prepareStatement(validateExpSQL);
+			validateExpPrepStmt.setInt(1, bapmId);
+			rs = validateExpPrepStmt.executeQuery();
 			
-			validatePrepStmt.setInt(1, apdId);
-			rs = validatePrepStmt.executeQuery();
 			while(rs.next())
 			{
-				curStatus = rs.getString("rz_apd_ap_status");
+				isAPExpired = rs.getString("rz_bapm_status").equals("Expired")?true:false;
 			}
-			System.out.println(curStatus);
 			rs.close();
-			if(!curStatus.equals("WIP"))
-			{
+			if(isAPExpired)//this means this action plan has Expired status and we can't continue
+			{				
 				retJson.put("result", "FAILED");
 				retJson.put("resultCode", "200");
-				retJson.put("message", "Error: Current status doesn't allow any changes");
-				rb = Response.ok(retJson.toString()).build();
+				retJson.put("message", "Action Plan is Expired");
+				rb = Response.ok(retJson.toString()).build();	
 			}
-			else
+			else//AP status is not expired. We need to continue
 			{
-				updatePrepStmt.setString(1,apText);
-				updatePrepStmt.setTimestamp(2,java.sql.Timestamp.valueOf(java.time.LocalDateTime.now()));
-				updatePrepStmt.setInt(3,apdId);
-				updatePrepStmt.executeUpdate();
-				retJson.put("result", "Success");
-			    retJson.put("resultCode", "100");
-			    retJson.put("message", "Changes have been saved");
-			    retJson.put("rz_apd_id", apdId);
-			    retJson.put("rz_apd_ap_status", "WIP");
-			    rb = Response.ok(retJson.toString()).build();
-				conn.commit();
-			}			
+				validatePrepStmt = conn.prepareStatement(validateSQL);
+				updatePrepStmt = conn.prepareStatement(updateSQL);
+				
+				validatePrepStmt.setInt(1, apdId);
+				rs = validatePrepStmt.executeQuery();
+				while(rs.next())
+				{
+					curStatus = rs.getString("rz_apd_ap_status");
+				}
+				System.out.println(curStatus);
+				rs.close();
+				if(!curStatus.equals("WIP"))
+				{
+					retJson.put("result", "FAILED");
+					retJson.put("resultCode", "200");
+					retJson.put("message", "Error: Current status doesn't allow any changes");
+					rb = Response.ok(retJson.toString()).build();
+				}
+				else
+				{
+					updatePrepStmt.setString(1,apText);
+					updatePrepStmt.setTimestamp(2,java.sql.Timestamp.valueOf(java.time.LocalDateTime.now()));
+					updatePrepStmt.setInt(3,apdId);
+					updatePrepStmt.executeUpdate();
+					retJson.put("result", "Success");
+				    retJson.put("resultCode", "100");
+				    retJson.put("message", "Changes have been saved");
+				    retJson.put("rz_apd_id", apdId);
+				    retJson.put("rz_apd_ap_status", "WIP");
+				    rb = Response.ok(retJson.toString()).build();
+					conn.commit();
+				}			
+			}
+			
 			
 		}//end of try
 		catch(Exception e)
@@ -1095,6 +1182,17 @@ public class ActionPlanManager {
 		}//end of catch
 		finally
 		{
+			if(validateExpPrepStmt != null)
+			{
+				try
+				{
+					validateExpPrepStmt.close();
+				}
+				catch(Exception e1)
+				{
+					e1.printStackTrace();
+				}
+			}
 			if(validatePrepStmt != null)
 			{
 				try
@@ -1130,7 +1228,7 @@ public class ActionPlanManager {
 					e1.printStackTrace();
 				}
 			}
-		}
+		}//end of finally
 		
 		
 		
@@ -1143,14 +1241,14 @@ public class ActionPlanManager {
 		JSONObject retJson = new JSONObject();		
 		Connection conn = null;
 		PreparedStatement validatePrepStmt = null;
-		PreparedStatement updatePrepStmt = null;				
+		PreparedStatement updatePrepStmt = null;			
 		ResultSet rs = null;
 		int reviewerId = -1;
 		int apdId = -1;		
 		int bapmId = -1;
 		String status = null;
 		String curStatus = null;
-		String reviewText = null;
+		String reviewText = null;		
 		
 		try
 		{
@@ -1265,7 +1363,14 @@ public class ActionPlanManager {
 				curStatus = rs.getString("rz_apd_ap_status");				
 			}
 			rs.close();
-			if(!curStatus.equals("Ready For Review"))
+			if(curStatus.equals("Expired"))
+			{
+				retJson.put("result", "FAILED");
+				retJson.put("resultCode", "200");
+				retJson.put("message", "Error: Action Plan is Expired");
+				rb = Response.ok(retJson.toString()).build();		
+			}
+			else if(!curStatus.equals("Ready For Review"))
 			{
 				retJson.put("result", "FAILED");
 				retJson.put("resultCode", "200");
@@ -1282,6 +1387,7 @@ public class ActionPlanManager {
 					updatePrepStmt.setTimestamp(2, addDte);
 				else 
 					updatePrepStmt.setTimestamp(2, null);
+				
 				updatePrepStmt.setTimestamp(3, addDte);
 				updatePrepStmt.setInt(4, bapmId);
 				updatePrepStmt.executeUpdate();
@@ -1302,8 +1408,13 @@ public class ActionPlanManager {
 			    retJson.put("rz_apd_ap_status", status);
 			    rb = Response.ok(retJson.toString()).build();
 				conn.commit();
+
 				
-			}
+					
+				
+			}			
+			
+			
 			
 		}
 		catch(Exception e)
@@ -1325,6 +1436,7 @@ public class ActionPlanManager {
 				}
 			}
 		}//end of catch
+		finally
 		{
 			if(validatePrepStmt != null)
 			{
@@ -1361,7 +1473,7 @@ public class ActionPlanManager {
 					e1.printStackTrace();
 				}
 			}
-		}
+		}//end of finally
 		return rb;
 	}
 

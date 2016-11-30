@@ -212,7 +212,8 @@ public class TaskManager {
 				+ " MTRC_METRIC_PRODUCTS.mtrc_prod_display_text,"
 				+ " MTRC_METRIC_PERIOD.mtrc_id,"
 				+ " RZ_BAP_METRICS.rz_bapm_status,"
-				+ " RZ_BAP_METRICS.rz_bapm_id"
+				+ " RZ_BAP_METRICS.rz_bapm_id,"
+				+ " RZ_BAP_METRICS.mtrc_period_val_id"
 				+ " from RZ_BLDG_ACTION_PLAN,RZ_BAP_METRICS,MTRC_METRIC_PERIOD_VALUE,MTRC_METRIC_PERIOD,MTRC_TM_PERIODS,DSC_MTRC_LC_BLDG,MTRC_METRIC_PRODUCTS,MTRC_PRODUCT "
 				+ " where RZ_BLDG_ACTION_PLAN.rz_bap_id = RZ_BAP_METRICS.rz_bap_id"
 				+ " and RZ_BAP_METRICS.mtrc_period_val_id = MTRC_METRIC_PERIOD_VALUE.mtrc_period_val_id"
@@ -316,7 +317,7 @@ public class TaskManager {
 				sTask.put("mtrc_prod_display_text", rs.getString("mtrc_prod_display_text"));
 				sTask.put("status", rs.getString("rz_bapm_status"));
 				sTask.put("rz_bapm_id", rs.getInt("rz_bapm_id"));
-				
+				sTask.put("mtrc_period_val_id", rs.getInt("mtrc_period_val_id"));
 				submitTasks.put(sTask);
 			}
 			ps.close();
