@@ -251,6 +251,7 @@ public class RZAuthenticationManager {
 				retJson.put("result", "FAILED");
 				retJson.put("resultCode", "200");
 				retJson.put("message", "Error: Cannot authenticate user");
+				//retJson.put("message", "Error:"+adResult.toString());
 				rb = Response.ok(retJson.toString()).build();
 			}
 		}
@@ -304,7 +305,7 @@ public class RZAuthenticationManager {
 			{
 				retJson.put("result", "FAILED");
 				retJson.put("resultCode", "200");
-				retJson.put("message", "Error: Cannot authenticate user");
+				retJson.put("message", "Error: Cannot authenticate user");				
 				rb = Response.ok(retJson.toString()).build();
 			}
 		}
@@ -339,7 +340,10 @@ public class RZAuthenticationManager {
 		StringBuilder sb = new StringBuilder();
 		try {
 
-	        URL url = new URL("http://dscapi.dsccorp.net/dscrest/api/v1/getobsemp/DSCAuthenticationSrv");
+	        //URL url = new URL("http://dscapi.dsccorp.net/dscrest/api/v1/getobsemp/DSCAuthenticationSrv");
+			//http://dscapidev.dsccorp.net/dscrest/api/v1/getobsemp/DSCAuthenticationSrv
+			
+			URL url = new URL("http://dscapidev.dsccorp.net:8080/dscrest/api/v1/getobsemp/DSCAuthenticationSrv");
 	        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 	        conn.setDoOutput(true);
 	        conn.setRequestMethod("POST");

@@ -1027,7 +1027,7 @@ public class ActionPlanManager {
 			}
 			else
 			{
-				bapmId = inputJsonObj.getInt("rz_apd_id");
+				bapmId = inputJsonObj.getInt("rz_bapm_id");
 			}	
 			if(!inputJsonObj.has("rz_apd_id")||(inputJsonObj.get("rz_apd_id")==null)||(inputJsonObj.get("rz_apd_id").equals("")))
 			{
@@ -1110,9 +1110,10 @@ public class ActionPlanManager {
 			validateExpPrepStmt = conn.prepareStatement(validateExpSQL);
 			validateExpPrepStmt.setInt(1, bapmId);
 			rs = validateExpPrepStmt.executeQuery();
-			
+			//System.out.println("bapmId = "+bapmId);
 			while(rs.next())
 			{
+				//System.out.println("status = "+rs.getString("rz_bapm_status"));
 				isAPExpired = rs.getString("rz_bapm_status").equals("Expired")?true:false;
 			}
 			rs.close();
