@@ -354,7 +354,6 @@ public class RZAuthenticationManager {
 	        os.write(input.getBytes());
 	        os.flush();
 	       
-
 	        BufferedReader br = new BufferedReader(new InputStreamReader(
 	                (conn.getInputStream())));
 
