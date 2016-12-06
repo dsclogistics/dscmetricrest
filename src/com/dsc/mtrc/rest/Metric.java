@@ -636,5 +636,19 @@ public Response getMyTeamTasksSummary(JSONObject inputJsonObj) throws Exception{
 	return rb;
 	
 }
+/*Method for get all metadata about a specific metric period value id
+ * */
+@Path("/getmpvalueinfo")
+@POST
+@Consumes(MediaType.APPLICATION_JSON)
+@Produces(MediaType.APPLICATION_JSON)
+public Response getMetricPeriodValueInfo(JSONObject inputJsonObj) throws Exception{
+	
+	HelpersAPI helper = new HelpersAPI();
+	Response rb = helper.getMetricPeriodValueInfo(inputJsonObj);
+	System.out.println("Message:"+rb);
+	return rb;
+	
+}
 
 }

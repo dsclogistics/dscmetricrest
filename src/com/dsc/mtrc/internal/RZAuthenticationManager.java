@@ -328,8 +328,8 @@ public class RZAuthenticationManager {
 		    url = (String) ctx.lookup("adurl");
 		}
 		catch (Exception e) {
-	           
-			url = "http://dscapidev.dsccorp.net/dscrest/api/v1/getobsemp/DSCAuthenticationSrv";			
+	        e.printStackTrace();
+			url = "http://dscapidev.dsccorp.net:8080/dscrest/api/v1/getobsemp/DSCAuthenticationSrv";			
 		}
 		return url;
 	}
@@ -342,8 +342,9 @@ public class RZAuthenticationManager {
 
 	        //URL url = new URL("http://dscapi.dsccorp.net/dscrest/api/v1/getobsemp/DSCAuthenticationSrv");
 			//http://dscapidev.dsccorp.net/dscrest/api/v1/getobsemp/DSCAuthenticationSrv
-			
-			URL url = new URL("http://dscapidev.dsccorp.net:8080/dscrest/api/v1/getobsemp/DSCAuthenticationSrv");
+			//System.out.println("url is:"+adUrl);
+			//URL url = new URL("http://dscapidev.dsccorp.net:8080/dscrest/api/v1/getobsemp/DSCAuthenticationSrv");
+			URL url = new URL(adUrl);
 	        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 	        conn.setDoOutput(true);
 	        conn.setRequestMethod("POST");

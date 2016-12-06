@@ -3,13 +3,9 @@ package com.dsc.mtrc.internal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Collection;
 import java.util.List;
 
 import javax.naming.Context;
@@ -17,12 +13,11 @@ import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import javax.ws.rs.core.Response;
 
-import org.codehaus.jackson.map.ObjectMapper;
+
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
+
 
 import java.io.*;
 import java.net.*;

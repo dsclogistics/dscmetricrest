@@ -1409,10 +1409,7 @@ public class ActionPlanManager {
 			    retJson.put("rz_apd_ap_status", status);
 			    rb = Response.ok(retJson.toString()).build();
 				conn.commit();
-
-				
-					
-				
+			
 			}			
 			
 			
