@@ -342,7 +342,7 @@ public class RZAuthenticationManager {
 
 	        //URL url = new URL("http://dscapi.dsccorp.net/dscrest/api/v1/getobsemp/DSCAuthenticationSrv");
 			//http://dscapidev.dsccorp.net/dscrest/api/v1/getobsemp/DSCAuthenticationSrv
-			//System.out.println("url is:"+adUrl);
+			
 			//URL url = new URL("http://dscapidev.dsccorp.net:8080/dscrest/api/v1/getobsemp/DSCAuthenticationSrv");
 			URL url = new URL(adUrl);
 	        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
