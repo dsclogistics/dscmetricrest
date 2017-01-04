@@ -51,7 +51,8 @@ public class ldap {
 		    	  password=inputJsonObj.get("password").toString();
 
 	 			//String url = "ldap://192.168.2.1/OU=Desktop,OU=User Accounts,OU=CORPORATE HEADQUARTERS\\, IL,DC=dsclogistics,DC=dsccorp,DC=net";
-	 			String url="ldap://192.168.2.1/DC=dsclogistics,DC=dsccorp,DC=net";
+	 			String url="ldap://192.168.2.1/DC=dsclogistics,DC=dsccorp,DC=net";//192.168.43.110
+	 			//String url="ldap:DC=dsclogistics,DC=dsccorp,DC=net";
 	 			Hashtable env = new Hashtable();
 	 			env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
 	 			env.put(Context.PROVIDER_URL, url);

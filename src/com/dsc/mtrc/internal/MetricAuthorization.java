@@ -67,7 +67,7 @@ public class MetricAuthorization  {
 	         
 	          
 		    
-    		 // System.out.println("sql:"+SQL );
+    		  System.out.println("sql:"+SQL );
 	          Statement stmt = conn.createStatement();
 	             
 			      // do starts here

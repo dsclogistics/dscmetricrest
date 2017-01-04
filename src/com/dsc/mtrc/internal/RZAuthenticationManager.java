@@ -73,6 +73,8 @@ public class RZAuthenticationManager {
 									JSONObject jmperiod = new JSONObject();
 									jmperiod.put("metric_period_name", rmp.getMetricPeriodName());
 									jmperiod.put("metric_period_id", rmp.getMetricPeriodId());
+									jmperiod.put("mtrc_name", rmp.getMetricName());
+									jmperiod.put("mtrc_id", rmp.getMetricId());
 									jmperiods.put(jmperiod);							
 								}
 								jrole.put("metrics", jmperiods);
@@ -159,6 +161,8 @@ public class RZAuthenticationManager {
 									JSONObject jmperiod = new JSONObject();
 									jmperiod.put("metric_period_name", rmp.getMetricPeriodName());
 									jmperiod.put("metric_period_id", rmp.getMetricPeriodId());
+									jmperiod.put("mtrc_name", rmp.getMetricName());
+									jmperiod.put("mtrc_id", rmp.getMetricId());
 									jmperiods.put(jmperiod);							
 								}
 								jrole.put("metrics", jmperiods);
@@ -436,9 +440,11 @@ public class RZAuthenticationManager {
 				+ " and getdate() between r.mar_eff_start_dt and r.mar_eff_end_dt";
 				
 		
-		String mpSQL = "select a.mtrc_period_id, p.mtrc_period_name"
+		String mpSQL = "select a.mtrc_period_id, p.mtrc_period_name,m.mtrc_id,m.mtrc_name"
 				+ " from MTRC_MGMT_AUTH_NEW a join "
 				+ " MTRC_METRIC_PERIOD p on a.mtrc_period_id = p.mtrc_period_id"
+				+ " join  MTRC_METRIC m"
+				+ " on p.mtrc_id = m.mtrc_id"
 				+ " where a.muar_id = ?"
 				+ " and getdate() between a.mma_eff_start_date and a.mma_eff_end_date";
 		
@@ -492,6 +498,8 @@ public class RZAuthenticationManager {
 					RoleMetricPeriod mperiod = new RoleMetricPeriod();
 					mperiod.setMetricPeriodId(res.getInt("mtrc_period_id"));
 					mperiod.setMetricPeriodName(res.getString("mtrc_period_name"));
+					mperiod.setMetricName(res.getString("mtrc_name"));
+					mperiod.setMetricId(res.getInt("mtrc_id"));
 
 					role.getRoleMetricPeriods().add(mperiod);				
 				}//end of while

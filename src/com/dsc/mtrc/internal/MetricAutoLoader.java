@@ -76,6 +76,7 @@ public class MetricAutoLoader {
 			SQL = "select mtrc_token" +
 				  " from  MTRC_METRIC" +
 				  " where mtrc_id = "+ metricId;
+			System.out.println(SQL);
 			try
 			{
 				//conn= ConnectionManager.mtrcConn().getConnection();

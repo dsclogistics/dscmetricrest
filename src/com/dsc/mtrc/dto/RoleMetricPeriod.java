@@ -4,6 +4,7 @@ public class RoleMetricPeriod {
 
 	private int metricPeriodId;
 	private int metricId;
+	private String metricName;
 	private int tptId;
 	private String metricPeriodName;
 	private String token;
@@ -19,6 +20,12 @@ public class RoleMetricPeriod {
 	}
 	public void setMetricId(int metricId) {
 		this.metricId = metricId;
+	}
+	public String getMetricName() {
+		return metricName;
+	}
+	public void setMetricName(String metricName) {
+		this.metricName = metricName;
 	}
 	public int getTptId() {
 		return tptId;

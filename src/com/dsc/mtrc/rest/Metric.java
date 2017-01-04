@@ -133,14 +133,14 @@ public Response getAllMMperiods ()throws Exception
 	  
 	}
 
-//****************  Metric  Period Save
+//****************  Metric  Authorization
 @Path("/metricauthorization")
 @POST
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response metricauthorization(JSONObject inputJsonObj) throws Exception {
 	 Response rb = null;	 
-	// System.out.println("You are in MetricPeriodSave");
+	
 	java.util.Date date= new java.util.Date();
 	java.util.Date sdate=new Timestamp(date.getTime());  
 	MetricAuthorization mtrcauthorization = new MetricAuthorization();
