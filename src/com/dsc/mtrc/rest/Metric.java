@@ -31,7 +31,7 @@ public class Metric {
 	}
 
 //****************  Authenication Service
-@Path("/whoami")
+/*@Path("/whoami")
 @POST
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
@@ -47,7 +47,7 @@ public class Metric {
  
 	     return rb;
 	  
-	}
+	}*/
 
 //****************  Building LC
 @Path("/buildinglc")

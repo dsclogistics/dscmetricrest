@@ -221,8 +221,8 @@ public class RZAuthenticationManager {
 		String email = null;
 		
 		 
-		JSONObject adResult = authenticateDSCADUser(getADUrl(),username,password);
-		
+		//JSONObject adResult = authenticateDSCADUser(getADUrl(),username,password);
+		JSONObject adResult = authenticateDSCADUser(username,password);
 		try
 		{
 			if(adResult !=null && adResult.has("result"))
@@ -231,10 +231,11 @@ public class RZAuthenticationManager {
 				{
 					fullName = adResult.getJSONObject("DSCAuthenticationSrv").getString("first_name")+" "+adResult.getJSONObject("DSCAuthenticationSrv").getString("last_name");
 				    email =adResult.getJSONObject("DSCAuthenticationSrv").getString("email"); 
+				    if(username.substring(0, 1).equals("#")||username.substring(0, 1).equals("@"))username = username.substring(1);
 				    String validator = authorizeRZUser(username,"DSC AD",fullName,email);
 				    System.out.println("authorize user returned: "+validator);
 				    if(validator.equals("Success"))
-				    {
+				    {				    	
 				    	return loginUser(username);
 				    }
 				    else
@@ -657,8 +658,8 @@ public class RZAuthenticationManager {
 					//at this point we're done with user validation.
 					//now we need to validate user role
 					
-					String validateRoleSQL = "select count(*) cnt"
-							+ " from dsc_app_user u join"
+					String validateRoleSQL = "select active.cnt active_cnt, inactive.cnt inactive_cnt"
+							+ " from ( select count(*) cnt from dsc_app_user u join"
 							+ " MTRC_USER_APP_ROLES ap"
 							+ " on u.app_user_id = ap.app_user_id  join"
 							+ " MTRC_APP_ROLE r on ap.mar_id = r.mar_id join"
@@ -667,23 +668,46 @@ public class RZAuthenticationManager {
 							+ " and u.app_user_sso_system = ?"
 							+ " and prod.prod_name = ?"
 							+ " and getdate() between ap.muar_eff_start_dt and ap.muar_eff_end_dt"
-							+ " and getdate() between r.mar_eff_start_dt and r.mar_eff_end_dt";
+							+ " and getdate() between r.mar_eff_start_dt and r.mar_eff_end_dt)active,"
+							+ " ( select count(*) cnt from dsc_app_user u join"
+							+ " MTRC_USER_APP_ROLES ap"
+							+ " on u.app_user_id = ap.app_user_id  join"
+							+ " MTRC_APP_ROLE r on ap.mar_id = r.mar_id join"
+							+ " MTRC_PRODUCT prod on r.prod_id = prod.prod_id"
+							+ " where u.app_user_sso_id = ?"
+							+ " and u.app_user_sso_system = ?"
+							+ " and prod.prod_name = ?)inactive";
 
 					validateRolePS = conn.prepareStatement(validateRoleSQL);
 					validateRolePS.setString(1, ssoId);
 					validateRolePS.setString(2, ssoSystem);
 					validateRolePS.setString(3, "Red Zone");
+					validateRolePS.setString(4, ssoId);
+					validateRolePS.setString(5, ssoSystem);
+					validateRolePS.setString(6, "Red Zone");
 					ResultSet res = validateRolePS.executeQuery();
-					int roleCount = 0;
+					int activeRoleCount = 0;
+					int inactiveRoleCount = 0;
 					while(res.next())
 					{
-						roleCount = res.getInt("cnt");
+						activeRoleCount = res.getInt("active_cnt");
+						inactiveRoleCount = res.getInt("inactive_cnt");
 					}
 					
-					
-					if(roleCount>0)//user has role(s) assigned to him/her
+					//Here we need to check if user has active roles.
+					//The approach is:
+					//if user has active roles then simple return success
+					//if user doesn't have active roles but has deactivated roles
+					// then we assume that all of his RZ roles were disables,
+					// and we return "No Active RZ roles error"
+					// if user has no roles at all we need to assign RZ_USER role to him/her
+					if(activeRoleCount>0)//user has role(s) assigned to him/her
 					{
 						result = "Success";
+					}
+					else if(inactiveRoleCount>0)
+					{
+						result = "User doesn't have active Red Zone role(s)";
 					}
 					else//need to create RZ_USER role for this user
 					{
@@ -696,7 +720,7 @@ public class RZAuthenticationManager {
 						{
 							marId = res.getInt("mar_id");
 							String createUserRoleSQL = "insert into MTRC_USER_APP_ROLES (app_user_id,mar_id,muar_eff_start_dt,muar_eff_end_dt)"
-									+ "values(?,?,getdate(),'12/31/2016')";
+									+ "values(?,?,getdate(),'12/31/2060')";
 							
 							createUserRolePS = conn.prepareStatement(createUserRoleSQL);
 							createUserRolePS.setInt(1, appUsrId);
@@ -747,7 +771,7 @@ public class RZAuthenticationManager {
 				{
 					marId = rs.getInt("mar_id");
 					String createUserRoleSQL = "insert into MTRC_USER_APP_ROLES (app_user_id,mar_id,muar_eff_start_dt,muar_eff_end_dt)"
-							+ "values(?,?,getdate(),'12/31/2016')";
+							+ "values(?,?,getdate(),'12/31/2060')";
 					
 					createUserRolePS = conn.prepareStatement(createUserRoleSQL);
 					createUserRolePS.setInt(1, appUserID);
@@ -1009,6 +1033,17 @@ public class RZAuthenticationManager {
 			
 		}//end of finally
 		return result;
+	}
+
+    /*
+     * This method call the local ldap authentication method instead of calling 
+     * the one hosted on observation api server.
+     * 
+     * */
+	public JSONObject authenticateDSCADUser(String username, String password) throws JSONException
+	{
+		Ldap ldap = new Ldap();
+		return(ldap.authenticateLDAPUser(username, password));
 	}
 }
 
