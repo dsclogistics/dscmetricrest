@@ -176,7 +176,7 @@ public class BuildingSummary {
 //  if (fullyear.equals("Y"))
            {
    				   sdate=calyear +"-01-01" ;
-    			   edate=calyear +"-12-28" ;
+    			   edate=calyear +"-12-31 23:59:59" ;
     			   tptid=get_periodids(sdate,edate,conn);
   		   }
 			 //  first get a list off metrics for a given time period:
