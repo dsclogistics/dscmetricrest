@@ -13,7 +13,6 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.InitialDirContext;
 import javax.naming.directory.SearchControls;
 import javax.naming.directory.SearchResult;
-import javax.ws.rs.core.Response;
 
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -31,30 +30,45 @@ public class Ldap {
 	public static final String COLONIALHEIGHTS_URL  = "ldap://192.168.99.25/DC=ColonialHeights,DC=dsccorp,DC=net";
 	public static final String DSCLOGISTICS_URL = "ldap://192.168.2.1/DC=dsclogistics,DC=dsccorp,DC=net";
 	
-	public JSONObject authenticateLDAPUser(String username, String password) throws JSONException
+	public JSONObject authenticateLDAPUser(String username, String password, String domain) throws JSONException
 	{
 		
 		JSONObject retJson = new JSONObject();
 		JSONObject errJson = new JSONObject();
 		StringBuffer sb = new StringBuffer();		 	 	 
-	    String msg="";
+	    //String msg="";
 	    String err="";
-	    String url = DSCLOGISTICS_URL;
-	    String domain_name = DSCLOGISTICS_DOMAIN;
-    
-	    Hashtable<String, String> env = new Hashtable<String, String>();
-	    if(username.substring(0, 1).equals("#"))
+	  	String url = "";
+	    String domain_name = "";
+	    //if domain name isn't passed we assume it's dsclogistics
+	    if(domain==null||domain.equals("")||domain.toUpperCase().equals(DSCLOGISTICS_DOMAIN.toUpperCase()))
 	    {
-  		  username = username.substring(1);
-		  url= COLONIALHEIGHTS_URL;
-		  domain_name = COLONIALHEIGHTS_DOMAIN;
-	    }  	  
-		else if(username.substring(0, 1).equals("@"))
+	    	url = DSCLOGISTICS_URL;
+		    domain_name = DSCLOGISTICS_DOMAIN;
+	    }
+	    else if((domain!=null||!domain.equals(""))&&domain.toUpperCase().equals(COLONIALHEIGHTS_DOMAIN.toUpperCase()))
+	    {
+	    	url= COLONIALHEIGHTS_URL;
+			domain_name = COLONIALHEIGHTS_DOMAIN;	  
+	    }	    	  
+		else if((domain!=null||!domain.equals(""))&&domain.toUpperCase().equals(DSCCORP_DOMAIN.toUpperCase()))
 		{
-		  username = username.substring(1);
 	  	  url=DSCCORP_URL;
 	  	  domain_name = DSCCORP_DOMAIN;
-		}	
+		}
+		else
+		{
+			errJson.put("result", "FAILED");
+			errJson.put("resultCode", 300);
+			errJson.put("message", "Invalid Domain Name");
+			return errJson;
+		}
+		
+	    	
+	    
+    
+	    Hashtable<String, String> env = new Hashtable<String, String>();
+	   
     
 	    env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
 		env.put(Context.PROVIDER_URL, url);
@@ -107,11 +121,6 @@ public class Ldap {
 				retJson.put("resultCode", 0);
 				retJson.put("message", "");
 				retJson.put("DSCAuthenticationSrv", tempJson);
-				 msg= ",\"DSCAuthenticationSrv\":";  
-				msg=msg+"{\"name\":\""+cnname[1]+"\",\"first_name\":\""+fname +
-					"\",\"last_name\":\""+lname +
-					"\",\"email\":\""+email+"\"}";
-				sb.append("{\"result\":\"SUCCESS\",\"resultCode\":0,\"message\":\"\""+msg+"}");	
 			}
 
 
@@ -133,14 +142,14 @@ public class Ldap {
 	    }
 		if (err.length()> 0)
 		{
-			sb.append("{\"result\":\"FAILED\",\"resultCode\":300,\"message\":\"" +err +"\"}");
+			//sb.append("{\"result\":\"FAILED\",\"resultCode\":300,\"message\":\"" +err +"\"}");
 			errJson.put("result", "FAILED");
 			errJson.put("resultCode", 300);
 			errJson.put("message", err);
 			return errJson;
 	    }
   
-    System.out.println(sb.toString());
+    //System.out.println(sb.toString());
     return retJson;		
 	    
 	    

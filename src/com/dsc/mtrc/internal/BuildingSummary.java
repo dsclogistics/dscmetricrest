@@ -177,7 +177,7 @@ public class BuildingSummary {
 //  if (fullyear.equals("Y"))
            {
    				   sdate=calyear +"-01-01" ;
-    			   edate=calyear +"-12-28" ;
+    			   edate=calyear +"-12-31 23:59:59" ;
     			   tptid=get_periodids(sdate,edate,conn);
   		   }
 			 //  first get a list off metrics for a given time period:
@@ -354,7 +354,7 @@ public class BuildingSummary {
 					 	       checkReasonsPrepStmt = conn.prepareStatement(reasonSQL);
 						         rs = stmt.executeQuery(SQL1);
 						         rsmd = rs.getMetaData();
-						         System.out.println("sql is = "+SQL1);
+						         //System.out.println("sql is = "+SQL1);
 					              numColumns = rsmd.getColumnCount(); 
 					             	Double cvalue;
 										while (rs.next()) {
@@ -408,8 +408,8 @@ public class BuildingSummary {
 											           {
 											        
 												         cvalue=Double.parseDouble(rs.getString("mtrc_period_val_value"));
-												         System.out.println("cvalue="+cvalue);
-												         System.out.println("goal="+rs.getDouble("mpg_less_eq_val"));
+												         //System.out.println("cvalue="+cvalue);
+												         //System.out.println("goal="+rs.getDouble("mpg_less_eq_val"));
 											        	 if (cvalue <= (rs.getDouble("mpg_less_eq_val")))  
 											        		 mtrcpassyn="Y";
 											           }		
@@ -496,7 +496,7 @@ public class BuildingSummary {
 											    	  " left join rz_mtrc_period_status b on a.tm_period_id=b.tm_period_id and b.mtrc_period_id in ("+mpids +")" +
 											          " where  tm_per_start_dtm  < " +
 											          " DateAdd(month,+1,'"+calyear +"-"+calmonth +"-28') ";
-							//		 	 	   System.out.println("Find Min Max Sql:"+SQL1);			    	 
+									 	 	   //System.out.println("Find Min Max Sql:"+SQL1);			    	 
 									              int rcount=0;
 									              String tmid="";
 									              String strt="Y";
@@ -535,7 +535,7 @@ public class BuildingSummary {
 												    " left join mtrc_tm_periods b on a.tm_period_id = b.tm_period_id " +
 												   " where a.tm_period_id in ("+ tmid +") and mtrc_period_id ="+mpa[0] +" and rz_mps_status <> 'Inactive' "+
 											       " order by a.tm_period_id ";
-									    //     System.out.println(" Look Back Sql is:"+SQL1);
+									       // System.out.println(" Look Back Sql is:"+SQL1);
 									             rcount=0;
 											      String minprd="";
 											      String maxprd="";
@@ -748,5 +748,4 @@ public class BuildingSummary {
 	
 		 
  
-
 

@@ -526,9 +526,13 @@ System.out.println("Message :"+rb);
 		}
 		else
 		{
-			
+			String domain = null;
+			if(inputJsonObj.has("domain"))
+			{
+				domain = inputJsonObj.getString("domain");
+			}
 			RZAuthenticationManager authManager  = new RZAuthenticationManager();
-			rb = authManager.loginRZUser(inputJsonObj.getString("sso_id"), inputJsonObj.getString("password"));
+			rb = authManager.loginRZUser(inputJsonObj.getString("sso_id"), inputJsonObj.getString("password"),domain);
 		}
 	
      System.out.println("Message :"+rb);

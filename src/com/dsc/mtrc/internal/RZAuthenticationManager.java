@@ -213,7 +213,7 @@ public class RZAuthenticationManager {
 		return rb;
 	}
 
-	public Response loginRZUser(String username, String password) throws JSONException
+	public Response loginRZUser(String username, String password, String domain) throws JSONException
 	{
 		Response rb = null;
 		JSONObject retJson = new JSONObject();
@@ -222,7 +222,7 @@ public class RZAuthenticationManager {
 		
 		 
 		//JSONObject adResult = authenticateDSCADUser(getADUrl(),username,password);
-		JSONObject adResult = authenticateDSCADUser(username,password);
+		JSONObject adResult = authenticateDSCADUserForRZ(username,password,domain);
 		try
 		{
 			if(adResult !=null && adResult.has("result"))
@@ -230,8 +230,7 @@ public class RZAuthenticationManager {
 				if(adResult.getString("result").equals("SUCCESS"))
 				{
 					fullName = adResult.getJSONObject("DSCAuthenticationSrv").getString("first_name")+" "+adResult.getJSONObject("DSCAuthenticationSrv").getString("last_name");
-				    email =adResult.getJSONObject("DSCAuthenticationSrv").getString("email"); 
-				    if(username.substring(0, 1).equals("#")||username.substring(0, 1).equals("@"))username = username.substring(1);
+				    email =adResult.getJSONObject("DSCAuthenticationSrv").getString("email"); 			    
 				    String validator = authorizeRZUser(username,"DSC AD",fullName,email);
 				    System.out.println("authorize user returned: "+validator);
 				    if(validator.equals("Success"))
@@ -1040,10 +1039,10 @@ public class RZAuthenticationManager {
      * the one hosted on observation api server.
      * 
      * */
-	public JSONObject authenticateDSCADUser(String username, String password) throws JSONException
+	public JSONObject authenticateDSCADUserForRZ(String username, String password, String domain) throws JSONException
 	{
 		Ldap ldap = new Ldap();
-		return(ldap.authenticateLDAPUser(username, password));
+		return(ldap.authenticateLDAPUser(username, password,domain));
 	}
 }
 
