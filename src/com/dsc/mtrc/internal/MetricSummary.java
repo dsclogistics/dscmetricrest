@@ -2,7 +2,6 @@ package com.dsc.mtrc.internal;
  
 import java.math.RoundingMode;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -189,11 +188,12 @@ public class MetricSummary {
 	               " mmpg.mpg_display_text,mmp.mtrc_period_desc from MTRC_METRIC_PERIOD mmp  "+
 		        		 "   join MTRC_metric as mm on mmp.mtrc_id = mm.mtrc_id "+ s +
 		        	     " join mtrc_mpg as mmpg on mmpg.mtrc_period_id = mmp.mtrc_period_id " +
-		        		 "   join MTRC_METRIC_PRODUCTS mmprd on mmprd.mtrc_period_id = mmp.mtrc_period_id " +
-		        		 " where   mmp.mtrc_period_id in ("+mpids +") and mmp.tpt_id in ("+tptid +") order by mmprd.mtrc_prod_display_order ";
+		        		 "   join MTRC_METRIC_PRODUCTS mmprd on mmprd.mtrc_period_id = mmp.mtrc_period_id "
+		        		 + "join MTRC_TIME_PERIOD_TYPE   mtt on mmp.tpt_id = mtt.tpt_id and mtt.tpt_name ='"+tptname+"'" +
+		        		 " where   mmp.mtrc_period_id in ("+mpids +") order by mmprd.mtrc_prod_display_order ";
 	 			 
 			     
-        //  System.out.println(" Header Sql:"+SQL1);	
+         System.out.println(" Header Sql:"+SQL1);	
  	          Statement stmt = conn.createStatement();
  	    	  // String[] retval=null;
 	          ResultSet rs = stmt.executeQuery(SQL1);
@@ -241,11 +241,13 @@ public class MetricSummary {
 				    		 " left join MTRC_METRIC_PERIOD b on a.mtrc_period_id = b.mtrc_period_id and b.tpt_id=e.tpt_id " +
 				    		 " left join dsc_mtrc_lc_bldg c on c.dsc_mtrc_lc_bldg_id = a.dsc_mtrc_lc_bldg_id "+
 				    		 " left join mtrc_metric d on d.mtrc_id=b.mtrc_id  " ;
+				    	//just return all active buildings for this year 2/1/2017 
+				       SQL1= "select dsc_mtrc_lc_bldg_name,dsc_mtrc_lc_bldg_id from dsc_mtrc_lc_bldg a where"
+					       		+ "  (a.dsc_mtrc_lc_bldg_eff_start_dt<='"+sdate +"' or a.dsc_mtrc_lc_bldg_eff_end_dt>='"+ edate+"')"
+					       		+ " order by dsc_mtrc_lc_bldg_name";
+				    			 //SQL1=SQL1+" order by dsc_mtrc_lc_bldg_name";
 				    	 
-		 
-				    			 SQL1=SQL1+" order by dsc_mtrc_lc_bldg_name";
-				    	 
-		  // System.out.println(" Building Sql:"+SQL1);	
+		  System.out.println(" Building Sql:"+SQL1);	
 			 	        stmt = conn.createStatement();
 			 	    	 int  mpid=0;
 				         rs = stmt.executeQuery(SQL1);
@@ -292,7 +294,7 @@ public class MetricSummary {
 							 
 						    			 
  
-					      //    System.out.println(" BuildingMetric Sql:"+SQL1);	
+					          System.out.println(" BuildingMetric Sql:"+SQL1);	
 					 	        stmt = conn.createStatement();
 					 	    	 
 						         rs = stmt.executeQuery(SQL1);

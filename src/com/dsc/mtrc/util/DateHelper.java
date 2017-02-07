@@ -2,7 +2,7 @@ package com.dsc.mtrc.util;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.Locale;
+
 /*
  * @author:RMA 
  * This class contains a set of static methods to make manipulations with date and time objects 

@@ -1,13 +1,8 @@
 package com.dsc.mtrc.internal;
 
-import java.math.RoundingMode;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Statement;
-import java.text.DecimalFormat;
-import java.text.ParseException;
 import java.sql.ResultSetMetaData;
 import javax.ws.rs.core.Response;
 import org.codehaus.jettison.json.JSONException;

@@ -208,12 +208,21 @@ public class BuildingSummary {
 			 SQL1="select a.mtrc_id,mtrc_name from mtrc_metric a where  a.mtrc_id in (" +
 			      " Select mtrc_id from mtrc_metric_period where mtrc_period_id in ("+mpids +") " +s + " and tpt_id in ("+tptid +"))" ;
  	
-	          SQL1="select mm.mtrc_id,mm.mtrc_name,mmprd.mtrc_prod_display_text,mmprd.mtrc_prod_display_order," +
+			 //This is original Giri's code. For year of 2017 it returns empty list of metrics 2/1/2017
+	          /*SQL1="select mm.mtrc_id,mm.mtrc_name,mmprd.mtrc_prod_display_text,mmprd.mtrc_prod_display_order," +
 	          		 " mmpg.mpg_display_text, mmp.mtrc_period_desc from MTRC_METRIC_PERIOD mmp  "+
 	        		 " left join MTRC_metric as mm on mmp.mtrc_id = mm.mtrc_id "+
 	          	     " join mtrc_mpg as mmpg on mmpg.mtrc_period_id = mmp.mtrc_period_id " +
 	        		 " left join MTRC_METRIC_PRODUCTS mmprd on mmprd.mtrc_period_id = mmp.mtrc_period_id " +
-	        		 " where   mmp.mtrc_period_id in ("+mpids +") and mmp.tpt_id in ("+tptid +") order by mmprd.mtrc_prod_display_order ";
+	        		 " where   mmp.mtrc_period_id in ("+mpids +") and mmp.tpt_id in ("+tptid +") order by mmprd.mtrc_prod_display_order ";*/
+	          
+	          SQL1="select mm.mtrc_id,mm.mtrc_name,mmprd.mtrc_prod_display_text,mmprd.mtrc_prod_display_order, "+
+		               " mmpg.mpg_display_text,mmp.mtrc_period_desc from MTRC_METRIC_PERIOD mmp  "+
+			        		 "   join MTRC_metric as mm on mmp.mtrc_id = mm.mtrc_id "+ s +
+			        	     " join mtrc_mpg as mmpg on mmpg.mtrc_period_id = mmp.mtrc_period_id " +
+			        		 "   join MTRC_METRIC_PRODUCTS mmprd on mmprd.mtrc_period_id = mmp.mtrc_period_id "
+			        		 + "join MTRC_TIME_PERIOD_TYPE   mtt on mmp.tpt_id = mtt.tpt_id and mtt.tpt_name ='"+tptname+"'" +
+			        		 " where   mmp.mtrc_period_id in ("+mpids +") order by mmprd.mtrc_prod_display_order ";
  		   //   System.out.println(" Header Sql:"+SQL1);	
  	          Statement stmt = conn.createStatement();
  	    	  // String[] retval=null;
@@ -247,25 +256,31 @@ public class BuildingSummary {
 				       
 				   /*    SQL1="  SELECT d.mtrc_name, b.mtrc_period_id,b.mtrc_id,c.dsc_mtrc_lc_bldg_id,a.tm_period_id, "+
 				    		 " c.dsc_lc_id,c.dsc_mtrc_lc_bldg_name,b.mtrc_period_name,a.mtrc_period_val_value "+ */
-				       SQL1="  SELECT distinct dsc_mtrc_lc_bldg_name, c.dsc_mtrc_lc_bldg_id  "+
+				       
+				       //Giri's original code. Problem is that it doesn't display building if no values have been collected
+				       //for it. 2/1/2017
+				       
+				      /* SQL1="  SELECT distinct dsc_mtrc_lc_bldg_name, c.dsc_mtrc_lc_bldg_id  "+
 				    		 " from [dbo].[MTRC_METRIC_PERIOD_VALUE] a "+ s +
 				    		   
 				    		//  " join mtrc_tm_periods e on (( e.tm_per_start_dtm >='"+sdate +"') and (e.tm_per_end_dtm <='"+ edate+"')) "+
 				    		 " and e.tm_period_id = a.tm_period_id  "+
 				    		 " left join MTRC_METRIC_PERIOD b on a.mtrc_period_id = b.mtrc_period_id and b.tpt_id=e.tpt_id " +
 				    		 " left join dsc_mtrc_lc_bldg c on c.dsc_mtrc_lc_bldg_id = a.dsc_mtrc_lc_bldg_id "+
-				    		 " left join mtrc_metric d on d.mtrc_id=b.mtrc_id  " ;
-				    	 
+				    		 " left join mtrc_metric d on d.mtrc_id=b.mtrc_id  " ;*/
+				       
+				       SQL1= "select dsc_mtrc_lc_bldg_name,dsc_mtrc_lc_bldg_id from dsc_mtrc_lc_bldg a where"
+				       		+ "  (a.dsc_mtrc_lc_bldg_eff_start_dt<='"+sdate +"' or a.dsc_mtrc_lc_bldg_eff_end_dt>='"+ edate+"')";
 				            if  (!bldid.equals(null) && !bldid.trim().isEmpty())
 				            
 				    		 {
-				    			 SQL1=SQL1 +" where a.dsc_mtrc_lc_bldg_id=" +bldid ;
+				    			 SQL1=SQL1 +" and a.dsc_mtrc_lc_bldg_id=" +bldid ;
 				    		 }
 				    		 else
 				    		 {
 				    			 SQL1=SQL1+" order by dsc_mtrc_lc_bldg_name";
 				    		 }
-		    // System.out.println(" Building Sql:"+SQL1);	
+		    System.out.println(" Building Sql:"+SQL1);	
 			 	        stmt = conn.createStatement();
 			 	    	 int  mpid=0;
 				         rs = stmt.executeQuery(SQL1);
