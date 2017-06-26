@@ -65,7 +65,7 @@ public class MetricName  {
 				         "  and CAST(DATEADD(ss, -1, DATEADD(month, DATEDIFF(month, 0, getdate()), 0)) as DATE) <=cast(mmp.mtrc_prod_eff_end_dt as date)) "+
 
                            
-                           " join MTRC_METRIC_PERIOD  mmper on  mmp.mtrc_prod_id = mmper.Mtrc_period_id " +
+                           " join MTRC_METRIC_PERIOD  mmper on  mmp.Mtrc_period_id = mmper.Mtrc_period_id " +
                            " join MTRC_METRIC mm on  mmper.mtrc_id = mm.mtrc_id " +
                            " join  MTRC_TIME_PERIOD_TYPE pt on  mmper.tpt_id = pt.tpt_id "+
                          //  " where mp.prod_name ='Red Zone'    and pt.tpt_name = 'Month' ";
@@ -79,7 +79,7 @@ public class MetricName  {
     		            	 SQL=SQL + " and mm.mtrc_name='"+mtrcname +"'";
 	         
 	          SQL=SQL+" order by mtrc_prod_display_order";
-    		//  System.out.println("MetricName SQL:"+SQL ); 
+    		System.out.println("MetricName SQL:"+SQL ); 
 	        
 	          Statement stmt = conn.createStatement();
 	        //     System.out.println("statement connect done" );

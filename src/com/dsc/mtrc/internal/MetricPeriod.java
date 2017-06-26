@@ -85,7 +85,7 @@ public class MetricPeriod  {
 				         "  and CAST(DATEADD(ss, -1, DATEADD(month, DATEDIFF(month, 0,'"+calyear +"-"+calmonth+"-28')+1, 0)) as DATE) <=cast(mmp.mtrc_prod_eff_end_dt as date)) "+
 
 				         
-				         " join MTRC_METRIC_PERIOD  mmper on mmp.mtrc_prod_id = mmper.Mtrc_period_id "+
+				         " join MTRC_METRIC_PERIOD  mmper on mmp.Mtrc_period_id = mmper.Mtrc_period_id "+
 				         " join MTRC_METRIC mm 	on mmper.mtrc_id = mm.mtrc_id "+			         
  						 " join MTRC_DATA_TYPE mdt  on mm.data_type_id = mdt.data_type_id "+		         
 				         " join MTRC_TIME_PERIOD_TYPE pt on mmper.tpt_id = pt.tpt_id "+
@@ -100,7 +100,7 @@ public class MetricPeriod  {
 				         " and Datename(month,tp.tm_per_end_dtm) ='"+calmonth +"' ";
 			 
 			 
-   // System.out.println(" Header Sql:"+SQL1);			 
+   //System.out.println(" Header Sql:"+SQL1);			 
 			 
  
     		  String SQL = " select bldg.dsc_mtrc_lc_bldg_name, bldg.dsc_mtrc_lc_bldg_id, bmp_is_editable_yn, " +
@@ -138,11 +138,12 @@ public class MetricPeriod  {
     				       " and Datename(month,MTRC_TM_PERIODS.tm_per_start_dtm) ='"+calmonth +"' "+
     				       " and Datename(month,MTRC_TM_PERIODS.tm_per_end_dtm) ='" +calmonth +"' ) value " +
     				       " on bldg.mtrc_period_id =value.mtrc_period_id and "+
-    				       "  bldg.dsc_mtrc_lc_bldg_id = value.dsc_mtrc_lc_bldg_id order by bldg.dsc_mtrc_lc_bldg_id";
+    				       "  bldg.dsc_mtrc_lc_bldg_id = value.dsc_mtrc_lc_bldg_id order by bldg.dsc_mtrc_lc_bldg_name";
+    				       
   		  
 	         
 	          
-            // System.out.println("Dtl Sql:"+SQL);
+            //System.out.println("Dtl Sql:"+SQL);
  
 	          Statement stmt = conn.createStatement();
 	 
@@ -223,96 +224,44 @@ public class MetricPeriod  {
 					  rs.close();
 					  
 					// now get status for prior or next period status
-			      int tmpidp=tmpid-1;
-			      int tmpidn=tmpid+1;
 			      String minprd="";
 			      String maxprd="";
 			      
-			    SQL1=" select max(a.tm_period_id)  from rz_mtrc_period_status a  left join mtrc_tm_periods b on b.tm_period_id = a.tm_period_id" +
-			    	 "	and ('"+calyear +"-"+calmonth +"-28' between "+
-			    	 " CAST(DATEADD(month, DATEDIFF(month, -1, '"+calyear +"-"+calmonth +"-28')+1 - 2, 0 )as date) "+
-			    	 " and CAST(DATEADD(ss, -1, DATEADD(month, DATEDIFF(month, 0, '"+calyear +"-"+calmonth +"-28')+1, 0)) as DATE)) "+
-			    	 " where mtrc_period_id=2 and rz_mps_status <> 'Inactive'  and a.tm_period_id  < " +
-			    	" ( select max(a.tm_period_id) from rz_mtrc_period_status a " +
-			    	" left join mtrc_tm_periods b on b.tm_period_id = a.tm_period_id "+
-			    	"        and ('"+calyear +"-"+calmonth +"-28' between  "+
-			    	" (CAST(DATEADD(month, DATEDIFF(month, -1, '"+calyear +"-"+calmonth +"-28')+1 - 2, 0 )as date))  "+
-			    	"	  and CAST(DATEADD(ss, -1, DATEADD(month, DATEDIFF(month, 0, '"+calyear +"-"+calmonth +"-28')+1, 0)) as DATE))"+
-			    	" where mtrc_period_id=2 and rz_mps_status <> 'Inactive' ) "+
-			    	"  union all "+
-			    	" ( select max(a.tm_period_id) from rz_mtrc_period_status a "+
-			    	" left join mtrc_tm_periods b on b.tm_period_id = a.tm_period_id "+
-			    	"         and ('"+calyear +"-"+calmonth +"-28' between  "+ 
-			    	" (CAST(DATEADD(month, DATEDIFF(month, -1, '"+calyear +"-"+calmonth +"-28')+1 - 2, 0 )as date))  "+
-			    	"		  and CAST(DATEADD(ss, -1, DATEADD(month, DATEDIFF(month, 0, '"+calyear +"-"+calmonth +"-28')+1, 0)) as DATE)) "+
-			    	" where mtrc_period_id=2 and rz_mps_status <> 'Inactive' )	"	;	 
-			    
-			     SQL1="select max(a.tm_period_id) from mtrc_tm_periods a " +
-			     	  " left join rz_mtrc_period_status b on a.tm_period_id=b.tm_period_id and b.mtrc_period_id="+mpid +
-			    	  " where  tm_per_start_dtm  < " +
-			          " DateAdd(month,-1,'"+calyear +"-"+calmonth +"-28') union all " + 
-			          " select max(a.tm_period_id) from mtrc_tm_periods a " +
-			    	  " left join rz_mtrc_period_status b on a.tm_period_id=b.tm_period_id and b.mtrc_period_id="+mpid +
-			          " where  tm_per_start_dtm  < " +
-			          " DateAdd(month,+1,'"+calyear +"-"+calmonth +"-28') ";
-			//	   System.out.println("Find Min Max Sql:"+SQL1);			    	 
-	              int rcount=0;
-	              String tmid="";
-	              String strt="Y";
-		          rs = stmt.executeQuery(SQL1);
-		          rsmd = rs.getMetaData();
-		          numColumns = rsmd.getColumnCount(); 
-					while (rs.next()) 
-					{
-						rcount++;
-						if (rcount == 1)
-						{ 
-							 if (rs.getInt(1) == 0)strt="N";
-							 tmid=rs.getInt(1) +",";
-						}
-						if (rcount == 2) tmid=tmid +rs.getInt(1); 			
-					}	
-				   rs.close();	
-				   
-	            if (rcount != 2)
-	            {
-	                String msg="Cannot find Min and Max Calendar Days.";
-	                sb.append("{\"result\":\"FAILED\",\"resultCode\":200,\"message\":\""+msg+"\"");
-	                rb=Response.ok(sb.toString()).build();
-	                if (conn != null) { conn.close();} 
-	   	          return rb;	            	
-	            	
-	            }
-	            if (mpid == 0) mpid=2;
-				SQL1="select  datename(month, tm_per_start_dtm) +'-'+Convert(varchar(4),Year(tm_per_start_dtm)) as yearmonth " +
-					" from rz_mtrc_period_status a  " +
-				    " left join mtrc_tm_periods b on a.tm_period_id = b.tm_period_id " +
-				   " where a.tm_period_id in ("+ tmid +") and mtrc_period_id="+mpid +" and rz_mps_status <> 'Inactive' "+
-			       " order by a.tm_period_id ";
-	      //  System.out.println(" Look Back Sql is:"+SQL1);
-	             rcount=0;
-		          rs = stmt.executeQuery(SQL1);
-		          rsmd = rs.getMetaData();
-		          numColumns = rsmd.getColumnCount(); 
-					while (rs.next()) 
-					{
-					   rcount++;
-					   if (rcount == 1 ) 
-					   {
-						    if(strt.equals("N")) maxprd=rs.getString(1);
-						    if(strt.equals("Y")) minprd=rs.getString(1);
-					   }
-					   if (rcount == 2)maxprd=rs.getString(1);
-				    //   if (rs.getInt(1) == tmpidp) minprd=rs.getString(2);
-				    //   if (rs.getInt(1) == tmpidn) maxprd=rs.getString(2);
- 			
-					}
-					
-					 jo.put("previousperiod", minprd); 
-					 jo.put("nextperiod", maxprd);
+			      //query to get previous period
+			      String prevPeriodSQL = "select datename(month, mtp.tm_per_start_dtm) +'-'+Convert(varchar(4),Year(mtp.tm_per_start_dtm)) as prev_yearmonth"
+			      		+ " from mtrc_tm_periods mtp,"
+			      		+ " rz_mtrc_period_status rmps"
+			      		+ " where DateAdd(month,-1,'"+calyear +"-"+calmonth +"-28') between mtp.tm_per_start_dtm  and mtp.tm_per_end_dtm"
+			      		+ " and mtp.tm_period_id= rmps.tm_period_id"
+			      		+ " and rmps.mtrc_period_id="+mpid
+			      		+ " and rmps.rz_mps_status <>'Inactive'";
+			      
+			      //query to get next period
+			      String nextPeriodSQL = "select datename(month, mtp.tm_per_start_dtm) +'-'+Convert(varchar(4),Year(mtp.tm_per_start_dtm)) as next_yearmonth"
+				      	+ " from mtrc_tm_periods mtp,"
+				      	+ " rz_mtrc_period_status rmps"
+				      	+ " where DateAdd(month,1,'"+calyear +"-"+calmonth +"-28') between mtp.tm_per_start_dtm  and mtp.tm_per_end_dtm"
+				      	+ " and mtp.tm_period_id= rmps.tm_period_id"
+				      	+ " and rmps.mtrc_period_id="+mpid
+				      	+ " and rmps.rz_mps_status <>'Inactive'";
+			      
+		          rs = stmt.executeQuery(prevPeriodSQL);	//execute query to get prev period	
+		          while(rs.next())
+		          {
+		        	  if(rs.getString("prev_yearmonth")!=null)minprd =rs.getString("prev_yearmonth");
+		          }
+		          rs.close();
+		          rs = stmt.executeQuery(nextPeriodSQL);	//execute query to get next period	
+		          while(rs.next())
+		          {
+		        	  if(rs.getString("next_yearmonth")!=null)maxprd =rs.getString("next_yearmonth");
+		          }
+		          rs.close();
+		          jo.put("previousperiod", minprd); 
+			      jo.put("nextperiod", maxprd);
+			      //done getting next and prev periods
 
-				//	 System.out.println("JO value is:"+jo.toString());
-		              rs.close();						 
+					 						 
 // now do sql for detail tables:
 			         //   System.out.println(" NOW DO DETAIL SQL:"+SQL);				 
 				          rs = stmt.executeQuery(SQL);
@@ -337,15 +286,8 @@ public class MetricPeriod  {
 					        	Double cvalue;;
 								if (column_name.equals("mtrc_period_val_value"))
 								{
-									// System.out.println("Metric Value is:"+colvalue +" bld:"+rs.getString(1));
-							 
 									  cvalue=Double.parseDouble(colvalue)*100;
-									 // df2.format(input));
-					        		 // cvalue=Float.parseFloat(colvalue)*100;
-					        		 // System.out.println("Cvalue after multiply is:"+cvalue);
-								     // colvalue=Float.toString(cvalue);
 									  colvalue=df2.format(cvalue);
-								     // System.out.println("Cvalue float to string is:"+colvalue);
 								     }	
 								      	        	
 					        	}

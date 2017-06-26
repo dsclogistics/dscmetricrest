@@ -22,6 +22,7 @@ import org.codehaus.jettison.json.JSONArray;
 
 
 import com.dsc.mtrc.dao.*;
+import com.dsc.mtrc.util.StringsHelper;
 
 
 public class BuildingSummary {
@@ -208,7 +209,7 @@ public class BuildingSummary {
 			 SQL1="select a.mtrc_id,mtrc_name from mtrc_metric a where  a.mtrc_id in (" +
 			      " Select mtrc_id from mtrc_metric_period where mtrc_period_id in ("+mpids +") " +s + " and tpt_id in ("+tptid +"))" ;
  	
-			 //This is original Giri's code. For year of 2017 it returns empty list of metrics 2/1/2017
+			 //This is original Giri's code. For year of 2017 it returns empty list of metrics       2/1/2017
 	          /*SQL1="select mm.mtrc_id,mm.mtrc_name,mmprd.mtrc_prod_display_text,mmprd.mtrc_prod_display_order," +
 	          		 " mmpg.mpg_display_text, mmp.mtrc_period_desc from MTRC_METRIC_PERIOD mmp  "+
 	        		 " left join MTRC_metric as mm on mmp.mtrc_id = mm.mtrc_id "+
@@ -313,14 +314,21 @@ public class BuildingSummary {
 							    //    if (fullyear.equals("Y"))
 						            {
 							            s =" join mtrc_tm_periods e on ((e.tm_per_start_dtm >= '"+sdate +"') and (  e.tm_per_end_dtm <='"+edate +"' )) ";
-								        t =" and  (( mmpg.mpg_start_eff_dtm  <= '" +sdate +"') and ( mmpg.mpg_end_eff_dtm >= '"+edate +"')) ";
+								       // t =" and  (( mmpg.mpg_start_eff_dtm  <= '" +sdate +"') and ( mmpg.mpg_end_eff_dtm >= '"+edate +"')) ";Original logic 4/13/2017
+						                t=" and e.tm_per_start_dtm between mmpg.mpg_start_eff_dtm and  mmpg.mpg_end_eff_dtm "+
+                                          "and e.tm_per_end_dtm  between mmpg.mpg_start_eff_dtm and  mmpg.mpg_end_eff_dtm ";
 						            }
 							       SQL1="  SELECT d.mtrc_name, b.mtrc_period_id,b.mtrc_id,c.dsc_mtrc_lc_bldg_id,a.tm_period_id, "+
 						    		 " c.dsc_lc_id,c.dsc_mtrc_lc_bldg_name,d.[mtrc_name],a.mtrc_period_val_value,a.mtrc_period_val_id, "+
 								     " d.mtrc_min_val,d.mtrc_max_val,f.data_type_token,  DATENAME(MONTH, e.tm_per_start_dtm) AS MonthName ," +
-						    		 " mmprd.mtrc_prod_display_order,mmprd.mtrc_prod_display_text " +
-								     " , mmpg.mpg_less_val, mmpg.mpg_less_eq_val,mmpg.mpg_greater_val, mmpg.mpg_greater_eq_val,mmpg.mpg_equal_val "+								     
-						    		 " , rmps.rz_mps_status,rbm.rz_bap_id,rbm.rz_bapm_id,rbm.rz_bapm_status, "+
+						    		 " mmprd.mtrc_prod_display_order,mmprd.mtrc_prod_display_text, " 					    
+								     + " case when mmpbg.mpbg_display_text is null then  mmpg.mpg_display_text else mmpbg.mpbg_display_text end as mpg_display_text,"
+								     + " case when mmpbg.mpbg_display_text is null then  mmpg.mpg_less_val else mmpbg.mpbg_less_val end as mpg_less_val, "
+								     + " case when mmpbg.mpbg_display_text is null then  mmpg.mpg_less_eq_val else mmpbg.mpbg_less_eq_val end as mpg_less_eq_val,"
+								     + " case when mmpbg.mpbg_display_text is null then  mmpg.mpg_equal_val else mmpbg.mpbg_equal_val end as mpg_equal_val,"
+								     + " case when mmpbg.mpbg_display_text is null then  mmpg.mpg_greater_val else mmpbg.mpbg_greater_val end as mpg_greater_val,"
+								     + "case when mmpbg.mpbg_display_text is null then  mmpg.mpg_greater_eq_val else mmpbg.mpbg_greater_eq_val end as mpg_greater_eq_val, " 	 							     
+						    		+ "  rmps.rz_mps_status,rbm.rz_bap_id,rbm.rz_bapm_id,rbm.rz_bapm_status, "+
 						    		 " coalesce(rbm.rz_bapm_status_updt_dtm, rbm.rz_bapm_created_on_dtm) as last_updated "+
 						    		 "   from [dbo].[MTRC_METRIC_PERIOD_VALUE] a "+ s+
 								     
@@ -329,18 +337,27 @@ public class BuildingSummary {
 						    	     " left join mtrc_mpg as mmpg on mmpg.mtrc_period_id =a.mtrc_period_id " + t+ 	
 						    	     " join rz_mtrc_period_status as rmps on rmps.tm_period_id = e.tm_period_id and " +
 						    		 " rmps.mtrc_period_id = a.mtrc_period_id " +
-						    		 " left join MTRC_METRIC_PERIOD b on a.mtrc_period_id = b.mtrc_period_id and b.tpt_id=e.tpt_id " +
+						    		 " left join MTRC_METRIC_PERIOD b on a.mtrc_period_id = b.mtrc_period_id and b.tpt_id=e.tpt_id "
+						    		 + "left join MTRC_TIME_PERIOD_TYPE mtpt on b.tpt_id =  mtpt.tpt_id  " +
 						    		 " left join dsc_mtrc_lc_bldg c on c.dsc_mtrc_lc_bldg_id = a.dsc_mtrc_lc_bldg_id "+
 						    		 " left join mtrc_metric d on d.mtrc_id=b.mtrc_id " +
 						    		 " left join mtrc_data_type f on f.data_type_id=d.data_type_id "+
-							         " left join mtrc_metric_products as mmprd on mmprd.mtrc_period_id = a.mtrc_period_id "+
-						    		 " left outer join rz_bap_metrics rbm on a.mtrc_period_val_id = rbm.mtrc_period_val_id ";
-						    		 
-						    		 
+							         " left join mtrc_metric_products as mmprd on mmprd.mtrc_period_id = a.mtrc_period_id "
+							         + "left join MTRC_PRODUCT mp on mmprd.prod_id=mp.prod_id "+
+						    		 " left outer join rz_bap_metrics rbm on a.mtrc_period_val_id = rbm.mtrc_period_val_id "
+						    		+ " left join MTRC_MPBG mmpbg on"
+						    		+ " mmpbg.dsc_mtrc_lc_bldg_id =c.dsc_mtrc_lc_bldg_id "
+						    		+ " and mmpbg.mtrc_period_id = b.mtrc_period_id"
+						    		+ " and mmpbg.prod_id = mmprd.prod_id"
+						    		+ " and e.tm_per_start_dtm between mmpbg.mpbg_start_eff_dtm and mmpbg.mpbg_end_eff_dtm "
+						    		+ " and e.tm_per_end_dtm between mmpbg.mpbg_start_eff_dtm and mmpbg.mpbg_end_eff_dtm"
+						    		+ " where mp.prod_name='"+prodname+"'"
+						    		+ " and mtpt.tpt_name='"+tptname+"'";
+						    		 						    		 
 						       	 if  (!bldid.equals(null) && !bldid.trim().isEmpty())
 							          
 						    		 {
-						    			 SQL1=SQL1 +" where a.dsc_mtrc_lc_bldg_id=" +bldid ;
+						    			 SQL1=SQL1 +" and a.dsc_mtrc_lc_bldg_id=" +bldid;
 						    		 }
 							    	  if  ((!bldid.equals(null) && !bldid.trim().isEmpty()) && 
 							    				 (!mtrcid.equals(null) && !mtrcid.trim().isEmpty()))
@@ -363,7 +380,7 @@ public class BuildingSummary {
 							    		 }						    			 
 						    			 
 	 
-				//	           System.out.println(" BuildingMetric Sql:"+SQL1);	
+				          System.out.println(" BuildingMetric Sql:"+SQL1);	
 							    String reasonSQL ="select count(*) r_count from MTRC_MPV_REASONS where  mtrc_period_val_id = ? ";		 
 					 	        stmt = conn.createStatement();
 					 	       checkReasonsPrepStmt = conn.prepareStatement(reasonSQL);
@@ -387,59 +404,17 @@ public class BuildingSummary {
 											if (rs.getString("data_type_token").equals("int")) intyn="Y";
 											if (rs.getString("data_type_token").equals("pct")) pctyn="Y";
 									        mtrcpassyn="N";
-									  if ((!rs.getString("mtrc_period_val_value").equals(null)) &&
-										   (!rs.getString("mtrc_period_val_value").trim().isEmpty()))
-									     {
+									 
 											if (((rs.getString("data_type_token").equals("int"))  ||
 											   (rs.getString("data_type_token").equals("dec"))  ||
 											   (rs.getString("data_type_token").equals("cur"))  ||
-											   (rs.getString("data_type_token").equals("pct"))) &&
-											    (!rs.getString("mtrc_period_val_value").equals("N/A")))
+											   (rs.getString("data_type_token").equals("pct"))))
 											{				        
 									        // NOW CHECK TO SEE IF FAILED GOALS
-
-									        if ((rs.getString("mpg_less_eq_val") != null) && 
-									        		
-									           (rs.getString("mpg_greater_eq_val") != null)) 
-									           {
-									        
-										         cvalue=Double.parseDouble(rs.getString("mtrc_period_val_value"));
-									        	 if ((cvalue >= Double.parseDouble(rs.getString("mpg_greater_eq_val"))) &&
-									        		(cvalue  <=	 Double.parseDouble(rs.getString("mpg_less_eq_val"))))
-									        		 mtrcpassyn="Y";
-									           }
-									       
-									        if ((rs.getString("mpg_less_eq_val") == null) && 
-											           (rs.getString("mpg_greater_eq_val") != null)) 
-											           {
-											        
-												         cvalue=Double.parseDouble(rs.getString("mtrc_period_val_value"));												         
-											        	 if (cvalue >= (rs.getDouble("mpg_greater_eq_val")))  
-											        		 mtrcpassyn="Y";
-											           }								        
-						 
-									        if ((rs.getString("mpg_less_eq_val") !=null) && 
-											           (rs.getString("mpg_greater_eq_val") == null))
-											           {
-											        
-												         cvalue=Double.parseDouble(rs.getString("mtrc_period_val_value"));
-												         //System.out.println("cvalue="+cvalue);
-												         //System.out.println("goal="+rs.getDouble("mpg_less_eq_val"));
-											        	 if (cvalue <= (rs.getDouble("mpg_less_eq_val")))  
-											        		 mtrcpassyn="Y";
-											           }		
-									        
-									        
-									        // end checking of goals
-											}
-									      } // end of null value in values
-								      if ((rs.getString("mtrc_period_val_value").equals(null)) ||
-								    	 (rs.getString("mtrc_period_val_value").trim().isEmpty()))
-									      {
-									    	  mtrcpassyn="X";
-									    	  
-									      }
-										     if (rs.getString("mtrc_period_val_value").equals("N/A")) mtrcpassyn="X";	
+												mtrcpassyn = StringsHelper.isGoalMet(rs.getString("mtrc_period_val_value"), rs.getString("mpg_less_val"), rs.getString("mpg_less_eq_val"), 
+														rs.getString("mpg_equal_val"), rs.getString("mpg_greater_val"), rs.getString("mpg_greater_eq_val"));
+								               // end checking of goals
+											}						     	
 						                     JSONObject jo = new JSONObject(); 
 										for (int i=1; i<numColumns+1; i++) {
 									        String column_name = rsmd.getColumnName(i);

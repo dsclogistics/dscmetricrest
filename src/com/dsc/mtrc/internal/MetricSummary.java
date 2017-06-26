@@ -21,6 +21,7 @@ import org.codehaus.jettison.json.JSONArray;
 
 
 import com.dsc.mtrc.dao.*;
+import com.dsc.mtrc.util.StringsHelper;
 
 
 public class MetricSummary {
@@ -243,7 +244,7 @@ public class MetricSummary {
 				    		 " left join mtrc_metric d on d.mtrc_id=b.mtrc_id  " ;
 				    	//just return all active buildings for this year 2/1/2017 
 				       SQL1= "select dsc_mtrc_lc_bldg_name,dsc_mtrc_lc_bldg_id from dsc_mtrc_lc_bldg a where"
-					       		+ "  (a.dsc_mtrc_lc_bldg_eff_start_dt<='"+sdate +"' or a.dsc_mtrc_lc_bldg_eff_end_dt>='"+ edate+"')"
+					       		+ "  (a.dsc_mtrc_lc_bldg_eff_start_dt>='"+sdate +"' or a.dsc_mtrc_lc_bldg_eff_end_dt>='"+ edate+"')"
 					       		+ " order by dsc_mtrc_lc_bldg_name";
 				    			 //SQL1=SQL1+" order by dsc_mtrc_lc_bldg_name";
 				    	 
@@ -271,26 +272,44 @@ public class MetricSummary {
 
 								  rs.close();
 
-								String 	 t= " and  (('"+sdate +"' >= mmpg.mpg_start_eff_dtm ) and ('" +edate +"' <=mmpg.mpg_end_eff_dtm)) ";  
+								//String 	 t= " and  (('"+sdate +"' >= mmpg.mpg_start_eff_dtm ) and ('" +edate +"' <=mmpg.mpg_end_eff_dtm)) ";ORIGINAL LOGIC 4/13/2017
+								  String 	 t= "and e.tm_per_start_dtm between mmpg.mpg_start_eff_dtm and  mmpg.mpg_end_eff_dtm"+ 
+										  " and e.tm_per_end_dtm  between mmpg.mpg_start_eff_dtm and  mmpg.mpg_end_eff_dtm ";
 								 // BUILDINGs  and Metrics ARRAY 
    						       SQL1="  SELECT d.mtrc_name, b.mtrc_period_id,b.mtrc_id,c.dsc_mtrc_lc_bldg_id,a.tm_period_id, "+
 						    		 " c.dsc_lc_id,c.dsc_mtrc_lc_bldg_name,d.[mtrc_name],a.mtrc_period_val_value, "+
-								     " d.mtrc_min_val,d.mtrc_max_val,f.data_type_token,  DATENAME(MONTH, e.tm_per_start_dtm) AS MonthName ," +
-						    		 " mmprd.mtrc_prod_display_order,mmprd.mtrc_prod_display_text " +
-								     " , mmpg.mpg_less_val, mmpg.mpg_less_eq_val,mmpg.mpg_greater_val, mmpg.mpg_greater_eq_val,mmpg.mpg_equal_val "+								     
-						    		 "  , rmps.rz_mps_status  from [dbo].[MTRC_METRIC_PERIOD_VALUE] a "+ 
+								     " d.mtrc_min_val,d.mtrc_max_val,f.data_type_token,  DATENAME(MONTH, e.tm_per_start_dtm) AS MonthName ," 
+								     + " case when mmpbg.mpbg_display_text is null then  mmpg.mpg_display_text else mmpbg.mpbg_display_text end as mpg_display_text,"
+								     + " case when mmpbg.mpbg_display_text is null then  mmpg.mpg_less_val else mmpbg.mpbg_less_val end as mpg_less_val, "
+								     + " case when mmpbg.mpbg_display_text is null then  mmpg.mpg_less_eq_val else mmpbg.mpbg_less_eq_val end as mpg_less_eq_val,"
+								     + " case when mmpbg.mpbg_display_text is null then  mmpg.mpg_equal_val else mmpbg.mpbg_equal_val end as mpg_equal_val,"
+								     + " case when mmpbg.mpbg_display_text is null then  mmpg.mpg_greater_val else mmpbg.mpbg_greater_val end as mpg_greater_val,"
+								     + "case when mmpbg.mpbg_display_text is null then  mmpg.mpg_greater_eq_val else mmpbg.mpbg_greater_eq_val end as mpg_greater_eq_val, "
+						    		 +" mmprd.mtrc_prod_display_order,mmprd.mtrc_prod_display_text " +						    						     
+						    		 " , rmps.rz_mps_status  from [dbo].[MTRC_METRIC_PERIOD_VALUE] a "+ 
 						    		 " join mtrc_tm_periods e on (( e.tm_per_start_dtm >='"+sdate +"') and (e.tm_per_end_dtm <='"+ edate+"')) "+
  						    		 " and e.tm_period_id = a.tm_period_id  "+
  						    		 " join mtrc_mpg as mmpg on mmpg.mtrc_period_id =a.mtrc_period_id " + t+ 	
 						    	     " join rz_mtrc_period_status as rmps on rmps.tm_period_id = e.tm_period_id and " +
 						    		 " rmps.mtrc_period_id = a.mtrc_period_id " +
- 						    		 "  join MTRC_METRIC_PERIOD b on a.mtrc_period_id = b.mtrc_period_id and b.tpt_id=e.tpt_id " +
- 						    		 "   and b.mtrc_id=" + mtrcid  + 
+ 						    		 "  join MTRC_METRIC_PERIOD b on a.mtrc_period_id = b.mtrc_period_id and b.tpt_id=e.tpt_id "
+ 						    		+ "left join MTRC_TIME_PERIOD_TYPE mtpt on b.tpt_id =  mtpt.tpt_id  " +
+ 						    		
 						    		 " left join dsc_mtrc_lc_bldg c on c.dsc_mtrc_lc_bldg_id = a.dsc_mtrc_lc_bldg_id "+
 						    		 " left join mtrc_metric d on d.mtrc_id=b.mtrc_id " +
 						    		 " left join mtrc_data_type f on f.data_type_id=d.data_type_id "+
-							         " left join mtrc_metric_products as mmprd on mmprd.mtrc_period_id = a.mtrc_period_id "+
-						    		 " order by a.tm_period_id,b.mtrc_id";		
+							         " left join mtrc_metric_products as mmprd on mmprd.mtrc_period_id = a.mtrc_period_id "
+							        + " left join MTRC_PRODUCT mp on mmprd.prod_id=mp.prod_id "
+							        + " left join MTRC_MPBG mmpbg on"
+						    		+ " mmpbg.dsc_mtrc_lc_bldg_id =c.dsc_mtrc_lc_bldg_id "
+						    		+ " and mmpbg.mtrc_period_id = b.mtrc_period_id"
+						    		+ " and mmpbg.prod_id = mmprd.prod_id"
+						    		+ " and e.tm_per_start_dtm between mmpbg.mpbg_start_eff_dtm and mmpbg.mpbg_end_eff_dtm "
+						    		+ " and e.tm_per_end_dtm between mmpbg.mpbg_start_eff_dtm and mmpbg.mpbg_end_eff_dtm"
+						    		+ " where mp.prod_name='"+prodname+"'"
+						    		+ " and mtpt.tpt_name='"+tptname+"'"
+						    		+ " and b.mtrc_id='"+mtrcid+"'"
+						    		+ " order by a.tm_period_id,b.mtrc_id";		
 							 
 						    			 
  
@@ -310,54 +329,16 @@ public class MetricSummary {
 											
 									        // NOW CHECK TO SEE IF FAILED GOALS
 									        mtrcpassyn="N";
-								      if ((!rs.getString("mtrc_period_val_value").equals(null)) &&
-										 (!rs.getString("mtrc_period_val_value").trim().isEmpty()))
-									     {
-											if (((rs.getString("data_type_token").equals("int"))  ||
-											   (rs.getString("data_type_token").equals("dec"))  ||
-											   (rs.getString("data_type_token").equals("cur"))  ||
-											   (rs.getString("data_type_token").equals("pct"))) &&
-											    (!rs.getString("mtrc_period_val_value").equals("N/A")))
-											{		                         
-									        if ((rs.getString("mpg_less_eq_val") != null) && 
-									           (rs.getString("mpg_greater_eq_val") != null)) 
-									           {
-									        
-										         cvalue=Double.parseDouble(rs.getString("mtrc_period_val_value"));
-									        	 if ((cvalue >= Double.parseDouble(rs.getString("mpg_greater_eq_val"))) &&
-									        		(cvalue  <=	 Double.parseDouble(rs.getString("mpg_less_eq_val"))))
-									        		 mtrcpassyn="Y";
-									           }
-									       
-									        if ((rs.getString("mpg_less_eq_val") == null) && 
-											           (rs.getString("mpg_greater_eq_val") != null)) 
-											           {
-											        
-												         cvalue=Double.parseDouble(rs.getString("mtrc_period_val_value"));
-											        	 if (cvalue >= (rs.getDouble("mpg_greater_eq_val")))  
-											        		 mtrcpassyn="Y";
-											           }								        
-						 
-									        if ((rs.getString("mpg_less_eq_val") !=null) && 
-											           (rs.getString("mpg_greater_eq_val") == null))
-											           {
-											        
-												         cvalue=Double.parseDouble(rs.getString("mtrc_period_val_value"));
-											        	 if (cvalue <= (rs.getDouble("mpg_less_eq_val")))  
-											        		 mtrcpassyn="Y";
-											           }		
-									        
-									        
-									        // end checking of goals	
-											}
-									      } // end of null value in values
-								      if ((rs.getString("mtrc_period_val_value").equals(null)) ||
-								    	 (rs.getString("mtrc_period_val_value").trim().isEmpty()))
-									      {
-									    	  mtrcpassyn="X";
-									    	  
-									      }											
-										     if (rs.getString("mtrc_period_val_value").equals("N/A")) mtrcpassyn="X";										 	 
+									        if (((rs.getString("data_type_token").equals("int"))  ||
+													   (rs.getString("data_type_token").equals("dec"))  ||
+													   (rs.getString("data_type_token").equals("cur"))  ||
+													   (rs.getString("data_type_token").equals("pct"))))
+													{
+														mtrcpassyn = StringsHelper.isGoalMet(rs.getString("mtrc_period_val_value"), rs.getString("mpg_less_val"), rs.getString("mpg_less_eq_val"), 
+																rs.getString("mpg_equal_val"), rs.getString("mpg_greater_val"), rs.getString("mpg_greater_eq_val"));
+		                                             											        											        
+											        // end checking of goals	
+													}						    													 	 
 						                     JSONObject jo = new JSONObject(); 
 										for (int i=1; i<numColumns+1; i++) {
 									        String column_name = rsmd.getColumnName(i);
@@ -371,15 +352,8 @@ public class MetricSummary {
 								            	cvalue=(double) 0;
 												if (column_name.equals("mtrc_period_val_value"))
 												{
-													// System.out.println("Metric Value is:"+colvalue +" bld:"+rs.getString(1));
-											 
 													  cvalue=Double.parseDouble(colvalue)*100;
-													 // df2.format(input));
-									        		 // cvalue=Float.parseFloat(colvalue)*100;
-									        		 // System.out.println("Cvalue after multiply is:"+cvalue);
-												     // colvalue=Float.toString(cvalue);
 													  colvalue=df2.format(cvalue);
-												     // System.out.println("Cvalue float to string is:"+colvalue);
 												     }	
 												      	        	
 									        	}

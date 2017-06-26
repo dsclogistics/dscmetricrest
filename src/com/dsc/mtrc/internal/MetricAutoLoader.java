@@ -275,14 +275,18 @@ public class MetricAutoLoader {
 		*/
 		
 		//So, lets get the list of buildings we're allowed to update first:
-		//We only need to select values for active buildings with editable flag set to N
+		//We only need to select building that were open during this period with editable flag set to N
+		
 		SQL = "select bm.dsc_mtrc_lc_bldg_id as building_id"
 				+ " from MTRC_BLDG_MTRC_PERIOD bm "
 				+ " join DSC_MTRC_LC_BLDG b"
 				+ " on bm.dsc_mtrc_lc_bldg_id = b.dsc_mtrc_lc_bldg_id"
 				+ " where bm.mtrc_period_id ="+mtrcperiodid
 				+ " and bm.bmp_is_editable_yn ='N'"
-				+ "  and GETDATE() between b.dsc_mtrc_lc_bldg_eff_start_dt and b.dsc_mtrc_lc_bldg_eff_end_dt";
+				+ " and (select cast(tm_per_start_dtm as date)  from MTRC_TM_PERIODS where MTRC_TM_PERIODS.tm_period_id="+tmperiodid+" )"
+				+ " between  b.dsc_mtrc_lc_bldg_eff_start_dt and b.dsc_mtrc_lc_bldg_eff_end_dt"
+				+ " and (select cast(tm_per_end_dtm as date) from MTRC_TM_PERIODS where MTRC_TM_PERIODS.tm_period_id="+tmperiodid+" )"
+				+ " between b.dsc_mtrc_lc_bldg_eff_start_dt and b.dsc_mtrc_lc_bldg_eff_end_dt";
 		
 		try
 		{

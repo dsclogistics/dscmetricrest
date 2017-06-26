@@ -16,6 +16,7 @@ import org.codehaus.jettison.json.JSONObject;
  
 import com.dsc.mtrc.dao.*;
 import com.dsc.mtrc.util.DateHelper;
+import com.dsc.mtrc.util.StringsHelper;
 import com.dsc.mtrc.util.MetricPeriodHelper;
 
 
@@ -436,67 +437,62 @@ public class MetricPeriodClose {
       			String actionPlanSQL = "insert into RZ_BLDG_ACTION_PLAN"
       					              +"(dsc_mtrc_lc_bldg_id,tm_period_id,rz_bap_created_on_dtm)"
       					              +"values (?,?,?)";
+      			//query to check if builging has override goals for this period
+      			String overrideGoalSQL ="select mpbg_less_val,mpbg_less_eq_val,mpbg_equal_val,mpbg_greater_val,mpbg_greater_eq_val,mpbg_display_text"
+      					+ " from MTRC_MPBG"
+      					+ " where dsc_mtrc_lc_bldg_id = ?"
+                        + " and mpbg_start_eff_dtm<= ?"
+                        + " and mpbg_end_eff_dtm>=?"
+                        + " and mtrc_period_id = ?"
+                        + " and prod_id = ?";
+
       			PreparedStatement actionPlanPstmt = conn.prepareStatement(actionPlanSQL,PreparedStatement.RETURN_GENERATED_KEYS);
       			PreparedStatement bapMetricPrepStmt = null;
       			PreparedStatement valueIdPrepStmt = null;
       			PreparedStatement getBuildingsPrepStmt = null;
           		Statement stmt = conn.createStatement();
           		PreparedStatement pstmt = conn.prepareStatement(insertSQL);
+          		PreparedStatement overrideGoalPs = conn.prepareStatement(overrideGoalSQL);
           		ResultSet rs = stmt.executeQuery(SQL1);
           		
           		ResultSetMetaData rsmd = rs.getMetaData();
           		while (rs.next()) 
           		{   
           			pstmt.setInt(1, rs.getInt("mtrc_period_val_id"));
-          			
-          			if ((rs.getString("mtrc_period_val_value").equals(null))||(rs.getString("mtrc_period_val_value").trim().isEmpty())||(rs.getString("mtrc_period_val_value").equals("N/A")))
+          			if(mpgAllowBldgOverride.equals("Y"))//if enterprise goal can be overwritten we need to check for building specific goals 
           			{
-          				pstmt.setString(2, "X");
-          				 //System.out.println("Value is NA Goal met is X");
+          				overrideGoalPs.setInt(1,rs.getInt("dsc_mtrc_lc_bldg_id"));
+          				overrideGoalPs.setString(2, startDate);
+          				overrideGoalPs.setString(3, endDate);
+          				overrideGoalPs.setString(4, mtrpid);
+          				overrideGoalPs.setInt(5, prodId);
+          				ResultSet overrideGoalRs = overrideGoalPs.executeQuery();          				   				
+          				if(overrideGoalRs.next())//if query returned any data
+          				{
+          					if(overrideGoalRs.getString("mpbg_less_val")!=null||
+          					   overrideGoalRs.getString("mpbg_less_eq_val")!=null||
+          					   overrideGoalRs.getString("mpbg_equal_val")!=null||
+          					   overrideGoalRs.getString("mpbg_greater_val")!=null||
+          					   overrideGoalRs.getString("mpbg_greater_eq_val")!=null){
+          						//if we're here, that means building override goal exists and we need to use override goal values
+          						pstmt.setString(2, StringsHelper.isGoalMet(rs.getString("mtrc_period_val_value"),overrideGoalRs.getString("mpbg_less_val")
+          								        ,overrideGoalRs.getString("mpbg_less_eq_val"),overrideGoalRs.getString("mpbg_equal_val"),
+          								        overrideGoalRs.getString("mpbg_greater_val"),overrideGoalRs.getString("mpbg_greater_eq_val")));
+          					}//end if
+          					else//use enterprise goals
+          					{
+          						pstmt.setString(2, StringsHelper.isGoalMet(rs.getString("mtrc_period_val_value"),mpgLessVal,mpgLessEqVal,mpgEqualVal,mpgGreaterVal,mpgGreaterEqVal));
+          					}
+          				}
+          				else
+          				{
+          					pstmt.setString(2, StringsHelper.isGoalMet(rs.getString("mtrc_period_val_value"),mpgLessVal,mpgLessEqVal,mpgEqualVal,mpgGreaterVal,mpgGreaterEqVal));
+          				}
+          				          			
+          			}//end of if(mpgAllowBldgOverride.equals("Y"))
+          			else{//use enterprise goal          				
+          				pstmt.setString(2, StringsHelper.isGoalMet(rs.getString("mtrc_period_val_value"),mpgLessVal,mpgLessEqVal,mpgEqualVal,mpgGreaterVal,mpgGreaterEqVal));
           			}
-          			else if ((mpgLessEqVal != null) && (mpgGreaterEqVal != null))
-          			{
-          			 	 mpValue = Double.parseDouble(rs.getString("mtrc_period_val_value"));
-			        	 if ((mpValue >= Double.parseDouble(mpgGreaterEqVal)&&(mpValue<=Double.parseDouble(mpgLessEqVal))))
-			        	 {
-			        		 pstmt.setString(2, "Y");
-			        		// System.out.println("Value is "+mpValue+" Goal met is Y");
-			        	 } 
-			        	 else
-			        	 {
-			        		 pstmt.setString(2, "N");
-			        		 //System.out.println("Value is "+mpValue+" Goal met is N");
-			        	 }
-          			}// end else of if ((mpgLessEqVal != null) && (mpgGreaterEqVal != null))         			
-          			else if ((mpgLessEqVal == null) && (mpgGreaterEqVal!= null))
-			        {
-			        	mpValue = Double.parseDouble(rs.getString("mtrc_period_val_value"));
-			        	if(mpValue >= Double.parseDouble(mpgGreaterEqVal))
-			        	{
-			        		pstmt.setString(2, "Y");
-			        		 //System.out.println("Value is "+mpValue+" Goal met is Y");
-			        	}
-			        	else
-			        	{
-			        		pstmt.setString(2, "N");
-			        		//System.out.println("Value is "+mpValue+" Goal met is N");
-			        	}
-			        }//end of else if ((mpgLessEqVal == null)&&(mpgGreaterEqVal!= null))
-			        
-          			else if ((mpgLessEqVal !=null) && (mpgGreaterEqVal == null))
-			        {
-			        	mpValue = Double.parseDouble(rs.getString("mtrc_period_val_value"));
-			        	if(mpValue <=(Double.parseDouble(mpgLessEqVal)))
-			        	{
-			        		pstmt.setString(2, "Y");
-			        	    //System.out.println("Value is "+mpValue+" Goal met is Y");
-			        	}
-			        	else
-			        	{
-			        		pstmt.setString(2, "N");
-			        		//System.out.println("Value is "+mpValue+" Goal met is N");
-			        	}
-			        }// end of if ((mpgLessEqVal !=null) && (mpgGreaterEqVal == null))
           			
 			        pstmt.setTimestamp(3, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now())); //java.sql.Date.valueOf(java.time.LocalDate.now()) is only available in java 8 
 			        pstmt.addBatch();
@@ -644,7 +640,6 @@ public class MetricPeriodClose {
 	         if (conn != null) { try {
 				conn.close();
 			} catch (SQLException ee) {
-				// TODO Auto-generated catch block
 				ee.printStackTrace();
 			}} 
 	            return rb;

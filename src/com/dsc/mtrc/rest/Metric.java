@@ -58,8 +58,8 @@ public class Metric {
 	 Response rb = null;
 	// System.out.println("You are in buildinglc rest"); 
 	 
-	java.util.Date date= new java.util.Date();
-	java.util.Date sdate=new Timestamp(date.getTime());
+	//java.util.Date date= new java.util.Date();
+	//java.util.Date sdate=new Timestamp(date.getTime());
 	  
 
 	 BuildingLc bldlc = new BuildingLc();
@@ -88,8 +88,8 @@ public Response getAllMMperiods ()throws Exception
 	 Response rb = null;
 	System.out.println("You are in buildinglc rest"); 
 	 
-	java.util.Date date= new java.util.Date();
-	java.util.Date sdate=new Timestamp(date.getTime());
+	//java.util.Date date= new java.util.Date();
+	//java.util.Date sdate=new Timestamp(date.getTime());
 	  
 
 	 BuildingLc bldlc = new BuildingLc();
@@ -106,8 +106,8 @@ public Response getAllMMperiods ()throws Exception
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response metricname(JSONObject inputJsonObj) throws Exception {
 	 Response rb = null;	 
-	java.util.Date date= new java.util.Date();
-	java.util.Date sdate=new Timestamp(date.getTime());  
+	//java.util.Date date= new java.util.Date();
+	//java.util.Date sdate=new Timestamp(date.getTime());  
 	 MetricName mtrcname = new MetricName();
 	  rb=mtrcname.MetricName(inputJsonObj);
 
@@ -124,8 +124,8 @@ public Response getAllMMperiods ()throws Exception
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response metricperiod(JSONObject inputJsonObj) throws Exception {
 	 Response rb = null;	 
-	java.util.Date date= new java.util.Date();
-	java.util.Date sdate=new Timestamp(date.getTime());  
+	/*java.util.Date date= new java.util.Date();
+	java.util.Date sdate=new Timestamp(date.getTime());  */
 	 MetricPeriod mtrcperiod = new MetricPeriod();
 	  rb=mtrcperiod.MetricPeriod(inputJsonObj);
 
@@ -141,8 +141,8 @@ public Response getAllMMperiods ()throws Exception
 	public Response metricauthorization(JSONObject inputJsonObj) throws Exception {
 	 Response rb = null;	 
 	
-	java.util.Date date= new java.util.Date();
-	java.util.Date sdate=new Timestamp(date.getTime());  
+	/*java.util.Date date= new java.util.Date();
+	java.util.Date sdate=new Timestamp(date.getTime());  */
 	MetricAuthorization mtrcauthorization = new MetricAuthorization();
 	  rb=mtrcauthorization.MetricAuthorization(inputJsonObj);
      return rb;
@@ -155,10 +155,10 @@ public Response getAllMMperiods ()throws Exception
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response metricperiodsave(JSONObject inputJsonObj) throws Exception {
-	 Response rb = null;	 
+	/* Response rb = null;	 
 	// System.out.println("You are in MetricPeriodSave");
 	java.util.Date date= new java.util.Date();
-	java.util.Date sdate=new Timestamp(date.getTime());  
+	java.util.Date sdate=new Timestamp(date.getTime());  */
 	 MetricPeriodSave mtrcperiodsave = new MetricPeriodSave();
 	 //String [] msg=mtrcperiodsave.MetricPeriodSave(inputJsonObj);
   // String r=msg[1];
@@ -176,8 +176,8 @@ public Response getAllMMperiods ()throws Exception
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response wmsbuilding(JSONObject inputJsonObj) throws Exception {
 	 Response rb = null;	 
-	java.util.Date date= new java.util.Date();
-	java.util.Date sdate=new Timestamp(date.getTime());  
+	/*java.util.Date date= new java.util.Date();
+	java.util.Date sdate=new Timestamp(date.getTime());  */
 	 WMSBuilding wmsbuilding  = new WMSBuilding();
 	  rb=wmsbuilding.WMSBuilding(inputJsonObj);
 
@@ -192,8 +192,8 @@ public Response getAllMMperiods ()throws Exception
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response metrictimeperiod(JSONObject inputJsonObj) throws Exception {
 	 Response rb = null;	 
-	java.util.Date date= new java.util.Date();
-	java.util.Date sdate=new Timestamp(date.getTime());  
+	/*java.util.Date date= new java.util.Date();
+	java.util.Date sdate=new Timestamp(date.getTime());  */
 	 MetricTimePeriod mtimepeirod  = new MetricTimePeriod();
 	  rb=mtimepeirod.MetricTimePeriod(inputJsonObj);
 
@@ -208,9 +208,9 @@ public Response getAllMMperiods ()throws Exception
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response throughputload(JSONObject inputJsonObj) throws Exception {
 	 Response rb = null;
-	 String msg = null;
+	/* String msg = null;
 	java.util.Date date= new java.util.Date();
-	java.util.Date sdate=new Timestamp(date.getTime());  
+	java.util.Date sdate=new Timestamp(date.getTime());  */
 	MetricAutoLoader mtimepeirod  = new MetricAutoLoader();
 	rb =mtimepeirod.loadMetric(inputJsonObj);
     System.out.println("Message :"+rb);
@@ -225,9 +225,9 @@ public Response getAllMMperiods ()throws Exception
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response metricperiodclose(JSONObject inputJsonObj) throws Exception {
 	 Response rb = null;
-	 String msg = null;
+	/* String msg = null;
 	java.util.Date date= new java.util.Date();
-	java.util.Date sdate=new Timestamp(date.getTime());  
+	java.util.Date sdate=new Timestamp(date.getTime());  */
 	MetricPeriodClose mtpclose  = new MetricPeriodClose();
 	rb =mtpclose.MetricPeriodClose(inputJsonObj);
  //   System.out.println("Message :"+rb);
@@ -242,9 +242,9 @@ public Response getAllMMperiods ()throws Exception
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response allmetrics(JSONObject inputJsonObj) throws Exception {
 	 Response rb = null;
-	 String msg = null;
+	/* String msg = null;
 	java.util.Date date= new java.util.Date();
-	java.util.Date sdate=new Timestamp(date.getTime());  
+	java.util.Date sdate=new Timestamp(date.getTime());  */
 	AllMetrics allmtrcs  = new AllMetrics();
 	rb =allmtrcs.AllMetrics(inputJsonObj);
  // System.out.println("Message :"+rb);
@@ -259,9 +259,9 @@ public Response getAllMMperiods ()throws Exception
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response summary(JSONObject inputJsonObj) throws Exception {
 	 Response rb = null;
-	 String msg = null;
+	/* String msg = null;
 	java.util.Date date= new java.util.Date();
-	java.util.Date sdate=new Timestamp(date.getTime());  
+	java.util.Date sdate=new Timestamp(date.getTime());  */
 	SummaryDetail summary  = new SummaryDetail();
 	rb =summary.SummaryDetail(inputJsonObj);
 // System.out.println("Message :"+rb);
@@ -275,9 +275,9 @@ public Response getAllMMperiods ()throws Exception
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response buildingsummary(JSONObject inputJsonObj) throws Exception {
 	 Response rb = null;
-	 String msg = null;
+	/* String msg = null;
 	java.util.Date date= new java.util.Date();
-	java.util.Date sdate=new Timestamp(date.getTime());  
+	java.util.Date sdate=new Timestamp(date.getTime());  */
 	BuildingSummary buildingsummary  = new BuildingSummary();
 	rb =buildingsummary.BuildingSummary(inputJsonObj);
 // System.out.println("Message :"+rb);
@@ -291,9 +291,9 @@ public Response getAllMMperiods ()throws Exception
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response metricsummary(JSONObject inputJsonObj) throws Exception {
 	 Response rb = null;
-	 String msg = null;
+	/* String msg = null;
 	java.util.Date date= new java.util.Date();
-	java.util.Date sdate=new Timestamp(date.getTime());  
+	java.util.Date sdate=new Timestamp(date.getTime()); */ 
 	MetricSummary metricsummary  = new MetricSummary();
 	rb =metricsummary.MetricSummary(inputJsonObj);
 // System.out.println("Message :"+rb);
